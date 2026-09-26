@@ -131,7 +131,6 @@ const { books, eyebrow, title, description } = Astro.props;
   }
 
   .book-slider__track {
-    gap: 28px;
     padding-bottom: var(--space-4);
   }
 
@@ -201,7 +200,7 @@ const { books, eyebrow, title, description } = Astro.props;
       // "however many whole cards fit" is already the responsive
       // behavior the design wants at every viewport width, with no
       // separate breakpoints object to keep in sync with the design.
-      slidesPerView: "auto",
+      slidesPerView: 3,
       spaceBetween: 28,
       // Instant "transitions" for anyone who's asked for reduced
       // motion — touch drag, clicking the arrows, and keyboard

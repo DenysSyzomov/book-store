@@ -46,5 +46,43 @@ export const heroSection = defineType({
       description: "A second, less prominent button. Optional.",
       type: "link",
     }),
+    defineField({
+      name: "image",
+      title: "Artwork photo",
+      description:
+        "The large photo on the right side of the hero. Optional — falls back to a plain moss-green panel when empty (docs/DESIGN-SYSTEM.md \"Hero artwork\").",
+      type: "image",
+      options: { hotspot: true },
+    }),
+    defineField({
+      name: "imageAlt",
+      title: "Artwork photo alt text",
+      description: "Describes the photo for screen readers. Required whenever an artwork photo is set.",
+      type: "string",
+      validation: (Rule) => Rule.max(160),
+    }),
+    defineField({
+      name: "featureNote",
+      title: "Feature note",
+      description:
+        'Small card that floats over the artwork photo, e.g. "Editor\'s pick — The Quiet Orchard". Only shown when an artwork photo is set.',
+      type: "object",
+      fields: [
+        defineField({
+          name: "label",
+          title: "Label",
+          description: 'Small uppercase kicker, e.g. "Editor\'s pick".',
+          type: "string",
+          validation: (Rule) => Rule.max(40),
+        }),
+        defineField({
+          name: "title",
+          title: "Title",
+          description: "The featured book or theme's name.",
+          type: "string",
+          validation: (Rule) => Rule.max(80),
+        }),
+      ],
+    }),
   ],
 });

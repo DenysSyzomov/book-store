@@ -48,6 +48,25 @@ const hero = homepage?.hero ?? {
   secondaryCta: { label: "Read our journal", href: "/books" },
 };
 
+// Same fallback-chain shape as shareImage below, kept separate from
+// `hero` itself: Sanity's `image` field is a reference object that
+// needs urlFor() to become a URL, while the local default is already
+// a plain path — the two shapes don't belong in one `??`.
+// docs/DESIGN-SYSTEM.md "Hero artwork": a photo (2x the 570x520
+// display size, for retina) with a floating "Editor's pick" callout.
+// The local default names a book that's actually in the catalog
+// (`getBooks()`'s "The Quiet Orchard") rather than reusing Figma's own
+// placeholder title, which doesn't exist as a real product here.
+const heroImageUrl = homepage?.hero?.image
+  ? urlFor(homepage.hero.image).width(1140).height(1040).fit("crop").url()
+  : "/images/hero-reading-scene.jpg";
+const heroImageAlt =
+  homepage?.hero?.imageAlt ??
+  "A stack of books and a steaming cup of coffee on a wooden table in a sunlit bookshop.";
+const heroFeatureNote = homepage?.hero?.featureNote?.title
+  ? homepage.hero.featureNote
+  : { label: "Editor's pick", title: "The Quiet Orchard" };
+
 const newArrivals = homepage?.newArrivals ?? {
   eyebrow: "New & noteworthy",
   heading: "New arrivals",
@@ -98,6 +117,9 @@ const shareImage = shareImageSource
     description={hero.description}
     primaryCta={hero.primaryCta}
     secondaryCta={hero.secondaryCta}
+    imageUrl={heroImageUrl}
+    imageAlt={heroImageAlt}
+    featureNote={heroFeatureNote}
   />
 
   <BookSlider

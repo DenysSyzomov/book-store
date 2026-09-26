@@ -11,6 +11,11 @@ interface Cta {
   href: string;
 }
 
+interface FeatureNote {
+  label?: string;
+  title?: string;
+}
+
 interface Props {
   eyebrow?: string;
   title: string;
@@ -19,6 +24,11 @@ interface Props {
   secondaryCta?: Cta;
   imageUrl?: string;
   imageAlt?: string;
+  /** Floating "Editor's pick" callout over the artwork photo
+   * (docs/DESIGN-SYSTEM.md "Hero artwork"). Only rendered when both an
+   * image and at least a title are present — it describes the photo,
+   * so it has nothing to overlay without one. */
+  featureNote?: FeatureNote;
 }
 
 const {
@@ -29,6 +39,7 @@ const {
   secondaryCta,
   imageUrl,
   imageAlt = "",
+  featureNote,
 } = Astro.props;
 ---
 
@@ -67,6 +78,15 @@ const {
           <img src={imageUrl} alt={imageAlt} width="570" height="520" />
         ) : (
           <div class="hero__art-fallback" role="presentation"></div>
+        )}
+
+        {imageUrl && featureNote?.title && (
+          <div class="hero__feature-note">
+            {featureNote.label && (
+              <p class="hero__feature-note-label">{featureNote.label}</p>
+            )}
+            <p class="hero__feature-note-title">{featureNote.title}</p>
+          </div>
         )}
       </div>
     </div>
@@ -118,6 +138,7 @@ const {
   }
 
   .hero__art {
+    position: relative;
     flex: 1 1 420px;
   }
 
@@ -125,12 +146,44 @@ const {
   .hero__art-fallback {
     width: 100%;
     aspect-ratio: 570 / 520;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     object-fit: cover;
   }
 
   .hero__art-fallback {
     background-color: var(--color-moss);
+  }
+
+  /* Figma places this at left:30px top:420px, width:300px inside the
+     570x520 artwork box (docs/DESIGN-SYSTEM.md "Hero artwork") — used
+     as percentages of that box, not fixed px, so it stays correctly
+     placed as .hero__art scales fluidly with the viewport instead of
+     staying pinned to Figma's one fixed canvas width. */
+  .hero__feature-note {
+    position: absolute;
+    left: 5.26%;
+    top: 80.77%;
+    width: 52.63%;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: var(--space-4);
+    background-color: var(--color-surface);
+    border-radius: var(--radius-sm);
+  }
+
+  .hero__feature-note-label {
+    font-family: var(--font-body);
+    font-size: 0.625rem;
+    font-weight: 400;
+    text-transform: uppercase;
+    color: var(--color-oxblood);
+  }
+
+  .hero__feature-note-title {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    color: var(--color-ink);
   }
 
   @media (max-width: 768px) {

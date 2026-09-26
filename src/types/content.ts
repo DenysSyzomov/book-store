@@ -56,6 +56,9 @@ export interface HomepageContent {
     description: string;
     primaryCta: LinkContent;
     secondaryCta?: LinkContent;
+    image?: SanityImageRef;
+    imageAlt?: string;
+    featureNote?: { label?: string; title?: string };
   };
   newArrivals: {
     eyebrow?: string;

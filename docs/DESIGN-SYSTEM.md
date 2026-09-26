@@ -155,6 +155,42 @@ from Figma. Fixed by wrapping the row in a real `<div>` inside
 it — no CSS or visual design changed, only which DOM node the existing
 rule now correctly matches.
 
+## Addendum — Hero artwork photo + "Editor's pick" feature note (UI QA pass)
+
+The Figma hero artwork (`3:2861`) is two layers this codebase never
+built: a photo ("Reading scene") filling the 570×520 panel, and a
+floating "Feature note" callout — label + title — overlapping its
+bottom-left corner. Neither the `heroSection` Sanity schema, the
+homepage GROQ query, nor `Hero.astro`'s props had any field for either
+one, so the hero always rendered the plain moss-green `.hero__art-
+fallback` — not a bug, just an unbuilt field.
+
+Added, following the same shape every other hero field already uses
+(a Sanity field with a hardcoded fallback in `index.astro` for when the
+CMS is empty):
+
+- `heroSection` schema: `image` (Sanity image, hotspot), `imageAlt`,
+  and `featureNote { label, title }`.
+- `Hero.astro`: a `featureNote` prop and the callout markup/styles,
+  positioned as **percentages** of the artwork box (5.26% / 80.77% /
+  52.63%, from Figma's 30px/420px/300px inside 570×520) rather than
+  fixed pixels, so it stays correctly placed as the panel scales
+  fluidly instead of only matching Figma's one fixed canvas width.
+  Border radius corrected from the shared `--radius-md` (10px, meant
+  for the cart panel) to a new `--radius-lg: 18px` token, matching
+  Figma's "Image and Icon Guidelines" spec for this panel specifically.
+- Local fallback photo: `public/images/hero-reading-scene.jpg` (the
+  actual Figma-exported asset, not a redraw/substitute) with fallback
+  copy naming a book that's actually in the catalog ("The Quiet
+  Orchard") instead of reusing Figma's own placeholder title ("Orchard
+  of Small Things"), which isn't a real product here.
+
+Not done: no real Sanity `homepage` document content was created or
+edited in the live dataset — the schema change only makes the fields
+available for a content manager to fill in later. Until then, every
+visit renders the local fallback photo/copy above, exactly like every
+other hero field already does.
+
 ---
 
 # Colors

@@ -70,7 +70,7 @@ export function getFooterContent(): Promise<FooterContent | null> {
 
 const HOMEPAGE_QUERY = defineQuery(`
   *[_id == "homepage"][0]{
-    hero{ eyebrow, heading, description, primaryCta{ label, href }, secondaryCta{ label, href } },
+    hero{ eyebrow, heading, description, primaryCta{ label, href }, secondaryCta{ label, href }, image, imageAlt, featureNote{ label, title } },
     newArrivals{ eyebrow, heading, description },
     promises[]{ heading, description },
     seo{ seoTitle, seoDescription, shareImage }

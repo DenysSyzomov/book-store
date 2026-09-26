@@ -43,6 +43,7 @@
   /* Radius */
   --radius-sm: 4px;
   --radius-md: 10px;
+  --radius-lg: 18px; /* Hero artwork panel only — docs/DESIGN-SYSTEM.md "Image and Icon Guidelines" */
   --radius-full: 999px;
 
   /* Shadow */
