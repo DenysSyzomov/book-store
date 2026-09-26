@@ -1,0 +1,29 @@
+/*
+  Self-hosted @font-face declarations for the two families
+  docs/DESIGN-SYSTEM.md's Typography section names as --font-display /
+  --font-body (tokens.css): Cormorant Garamond (serif/editorial) and
+  Inter (sans/UI). Loaded from /fonts (public/fonts/) rather than
+  Google's CDN — vercel.json's CSP only allows `style-src 'self'` and
+  `font-src 'self'` (docs/SECURITY.md: "no client-side code calls out
+  to a third-party origin"), so a <link> to fonts.googleapis.com would
+  either need that invariant weakened or would simply be blocked in
+  production. Both files are variable fonts (one file covers every
+  weight below via the 'wght' axis), matching how Google itself serves
+  them — this is not a hand-rolled optimization.
+*/
+
+@font-face {
+  font-family: "Cormorant Garamond";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("/fonts/cormorant-garamond-variable.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/inter-variable.woff2") format("woff2");
+}

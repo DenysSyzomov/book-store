@@ -28,26 +28,31 @@ const { books, eyebrow, title, description } = Astro.props;
 ---
 
 <section class="book-slider" aria-label={title}>
-  <Container class="book-slider__row">
-    <SectionHeading eyebrow={eyebrow} title={title} description={description} />
+  <Container>
+    {/* A real div, not a class on <Container>, so Astro's scoped CSS
+       for this flex row actually attaches — see Hero.astro's comment
+       for the full explanation. */}
+    <div class="book-slider__row">
+      <SectionHeading eyebrow={eyebrow} title={title} description={description} />
 
-    <div class="book-slider__nav">
-      <button
-        type="button"
-        class="book-slider__nav-button"
-        data-slider-prev
-        aria-label="Previous books"
-      >
-        &larr;
-      </button>
-      <button
-        type="button"
-        class="book-slider__nav-button book-slider__nav-button--filled"
-        data-slider-next
-        aria-label="Next books"
-      >
-        &rarr;
-      </button>
+      <div class="book-slider__nav">
+        <button
+          type="button"
+          class="book-slider__nav-button"
+          data-slider-prev
+          aria-label="Previous books"
+        >
+          &larr;
+        </button>
+        <button
+          type="button"
+          class="book-slider__nav-button book-slider__nav-button--filled"
+          data-slider-next
+          aria-label="Next books"
+        >
+          &rarr;
+        </button>
+      </div>
     </div>
   </Container>
 

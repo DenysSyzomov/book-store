@@ -5,6 +5,7 @@
   (docs/ARCHITECTURE.md §11). Kept small and readable on purpose.
 */
 
+@import "./fonts.css";
 @import "./tokens.css";
 
 /* 1. Box sizing: every element sizes itself including border/padding,

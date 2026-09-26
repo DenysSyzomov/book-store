@@ -26,28 +26,34 @@ const cartLabel = navigation?.cartLabel ?? "Bag";
 ---
 
 <header class="site-header">
-  <Container class="site-header__row">
-    <a href="/" class="site-header__brand">
-      {siteName}
-    </a>
+  <Container>
+    {/* A real div here, not a class on <Container>, is what lets
+       Astro's scoped CSS actually attach to this row — see Hero.astro
+       for the full explanation of why `<Container class="...">` alone
+       silently drops the styles. */}
+    <div class="site-header__row">
+      <a href="/" class="site-header__brand">
+        {siteName}
+      </a>
 
-    <nav class="site-header__nav" aria-label="Primary">
-      {navLinks.map((navLink) => <a href={navLink.href}>{navLink.label}</a>)}
-    </nav>
+      <nav class="site-header__nav" aria-label="Primary">
+        {navLinks.map((navLink) => <a href={navLink.href}>{navLink.label}</a>)}
+      </nav>
 
-    <button
-      type="button"
-      class="site-header__cart-trigger"
-      aria-haspopup="dialog"
-      aria-controls="cart-drawer"
-      data-cart-trigger
-    >
-      <span>{cartLabel}</span>
-      <span class="site-header__cart-badge" data-cart-badge aria-hidden="true">
-        0
-      </span>
-      <span class="visually-hidden">items in your bag</span>
-    </button>
+      <button
+        type="button"
+        class="site-header__cart-trigger"
+        aria-haspopup="dialog"
+        aria-controls="cart-drawer"
+        data-cart-trigger
+      >
+        <span>{cartLabel}</span>
+        <span class="site-header__cart-badge" data-cart-badge aria-hidden="true">
+          0
+        </span>
+        <span class="visually-hidden">items in your bag</span>
+      </button>
+    </div>
   </Container>
 </header>
 

@@ -122,6 +122,39 @@ Two type families, loaded as: **Cormorant Garamond** (serif, display/editorial) 
 
 **Note:** price is styled in **oxblood** on book cards (grid, slider, related books) but in **ink** on the book detail buy box and cart summary. This is a deliberate, consistent distinction, not an inconsistency: oxblood price = draws attention in a list; ink price = matches the more neutral commerce-focused buy box.
 
+## Addendum — font loading (UI QA pass)
+
+Cormorant Garamond and Inter were named as tokens (`--font-display` /
+`--font-body` in `tokens.css`) from Phase 2 onward but were never
+actually loaded — every page silently fell back to Georgia/system-ui.
+Fixed by self-hosting each family as a single variable-font `.woff2`
+(`public/fonts/`, `@font-face` in `src/styles/fonts.css`) rather than
+linking Google's CDN: `vercel.json`'s CSP only allows `style-src 'self'`
+and `font-src 'self'`, and docs/SECURITY.md documents "no client-side
+code calls out to a third-party origin" as an audited invariant — a
+`<link>` to fonts.googleapis.com would have silently violated that and
+been blocked in production. Both files are the same variable-weight
+asset Google itself serves for a `wght@400..700` request, so this costs
+one download per family, not one per weight.
+
+## Addendum — Container + scoped-class layout bug (UI QA pass)
+
+`Hero.astro`, `Header.astro`, `BookSlider.astro`, and the book detail
+page's Purchase/Book-information rows were passing their flex-row class
+straight to `<Container class="...">` (e.g. `<Container
+class="hero__row">`). Astro's scoped CSS only attaches a component's
+`data-astro-cid-*` attribute to elements written literally in that
+component's own template — not to a child component's root element just
+because it received a `class` prop — so the compiled `.hero__row[data-
+astro-cid-...]` rule could never match the real DOM node and the flex
+layout silently never applied. Every one of those rows was rendering as
+plain stacked blocks instead of the side-by-side layout this document
+specifies, which is what made the live site look like it had drifted
+from Figma. Fixed by wrapping the row in a real `<div>` inside
+`<Container>` at each call site instead of forwarding the class through
+it — no CSS or visual design changed, only which DOM node the existing
+rule now correctly matches.
+
 ---
 
 # Colors

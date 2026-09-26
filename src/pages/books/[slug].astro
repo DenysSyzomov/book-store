@@ -83,53 +83,60 @@ const bookJsonLd = buildBookProductSchema(book, pageUrl);
   </Container>
 
   <section class="purchase">
-    <Container class="purchase__row">
-      <div class="purchase__cover">
-        <img
-          src={book.imageUrl}
-          alt={`Cover of ${book.title} by ${book.author}`}
-          width="400"
-          height="560"
-        />
-      </div>
+    {/* A real div, not a class on <Container>, so Astro's scoped CSS
+       for this flex row actually attaches to the rendered element —
+       see Hero.astro's comment for the full explanation. */}
+    <Container>
+      <div class="purchase__row">
+        <div class="purchase__cover">
+          <img
+            src={book.imageUrl}
+            alt={`Cover of ${book.title} by ${book.author}`}
+            width="400"
+            height="560"
+          />
+        </div>
 
-      <div class="purchase__details">
-        <h1 class="purchase__title">{book.title}</h1>
-        <p class="purchase__author">by {book.author}</p>
-        <p class="purchase__price">{formattedPrice}</p>
-        <p
-          class:list={[
-            "purchase__availability",
-            { "purchase__availability--out": !isInStock },
-          ]}
-        >
-          {availabilityLabel}
-        </p>
+        <div class="purchase__details">
+          <h1 class="purchase__title">{book.title}</h1>
+          <p class="purchase__author">by {book.author}</p>
+          <p class="purchase__price">{formattedPrice}</p>
+          <p
+            class:list={[
+              "purchase__availability",
+              { "purchase__availability--out": !isInStock },
+            ]}
+          >
+            {availabilityLabel}
+          </p>
 
-        {isInStock && (
-          <div class="purchase__actions">
-            <QuantityStepper id="purchase-quantity" max={book.stock} />
-            <Button
-              type="button"
-              variant="primary"
-              data-add-to-cart
-              data-book-id={book.id}
-            >
-              Add to bag
-            </Button>
-          </div>
-        )}
+          {isInStock && (
+            <div class="purchase__actions">
+              <QuantityStepper id="purchase-quantity" max={book.stock} />
+              <Button
+                type="button"
+                variant="primary"
+                data-add-to-cart
+                data-book-id={book.id}
+              >
+                Add to bag
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     </Container>
   </section>
 
   <section class="book-info" aria-label="About the book">
-    <Container class="book-info__row">
-      <div class="book-info__synopsis">
-        <SectionHeading title="About the book" />
-        <p>{book.description}</p>
+    <Container>
+      <div class="book-info__row">
+        <div class="book-info__synopsis">
+          <SectionHeading title="About the book" />
+          <p>{book.description}</p>
+        </div>
+        <BookMetadataTable book={book} />
       </div>
-      <BookMetadataTable book={book} />
     </Container>
   </section>
 
