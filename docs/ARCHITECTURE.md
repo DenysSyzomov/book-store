@@ -460,6 +460,8 @@ _What goes wrong if implemented incorrectly:_ Using the service-role key for rou
 
 **What goes wrong if implemented incorrectly:** An unprotected preview deployment is a publicly reachable, search-indexable copy of the site running against whatever data it's configured with — if that preview happens to point at production Supabase (a very easy mistake when "just testing"), you've created an unauthenticated second front door to real commercial data.
 
+**Staging (added Phase 10 — see `docs/DEPLOYMENT.md` §3 for the full setup):** a third, named tier sits between ordinary Preview URLs and Production — a long-lived `staging` branch pinned to a fixed subdomain, so reviewers get one stable URL instead of a new one per push. It is not a distinct Vercel product; it's an ordinary Preview deployment (same Deployment Protection, same `VERCEL_ENV !== "production"` → noindex behavior already described above and in `docs/SECURITY.md` §8) that happens to have a stable branch and domain assigned to it. No code change was required to add it.
+
 ---
 
 # 12. Git Workflow
