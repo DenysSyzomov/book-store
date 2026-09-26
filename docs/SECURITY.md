@@ -335,6 +335,24 @@ after the first deploy, run
 above is present, and paste the CSP into an evaluator
 (e.g. Google's CSP Evaluator) to catch anything this review missed.
 
+**Phase 10 addendum — a real bug this limitation predicted:** exactly
+the class of thing the paragraph above warned about surfaced once a
+real Staging deployment existed. `style-src 'self'` has no
+`'unsafe-inline'` and no hash — correct and unchanged — but Astro's
+default `build.inlineStylesheets: "auto"` inlines a page's CSS as a
+`<style>` block whenever it's small enough, which is exactly what CSP
+`style-src` blocks without a matching hash. `/books` and every book
+detail page got an inlined stylesheet this way (the homepage's CSS
+chunk happened to be large enough to stay external, so it alone looked
+fine); under the enforced CSP, every one of those inlined stylesheets
+was silently dropped by the browser — broken layout on most of the
+site, not a Vercel/hosting issue. **Fixed** in `astro.config.mjs`:
+`build.inlineStylesheets: "never"` forces stylesheets to always be
+external files, so `style-src 'self'` (same-origin external
+stylesheets) covers all of them with no CSP loosening required. Confirmed
+post-fix: `npm run build` output has zero inline `<style>` blocks across
+every page.
+
 ---
 
 ## 8. Staging / preview indexation

@@ -64,4 +64,15 @@ export default defineConfig({
   // are actually server-rendered per-request.
   output: "server",
   adapter: vercel(),
+  build: {
+    // Astro's default ("auto") inlines a page's CSS directly as a
+    // <style> block when it's small enough — but vercel.json's CSP
+    // sets `style-src 'self'` with no `'unsafe-inline'` and no hash,
+    // so the browser silently drops any inlined stylesheet (found on
+    // /books and every book detail page during Phase 10 deployment
+    // testing — docs/DEPLOYMENT.md §4). Forcing stylesheets to always
+    // be external files (already how the homepage's larger CSS chunk
+    // behaved) fixes this without loosening the CSP.
+    inlineStylesheets: "never",
+  },
 });
