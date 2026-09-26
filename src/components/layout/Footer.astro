@@ -1,0 +1,161 @@
+---
+// Site footer: brand + editorial columns + copyright row
+// (docs/DESIGN-SYSTEM.md "Footer"). Pixel-identical across every page,
+// so each page includes it once at the end of its own content
+// (see docs/ARCHITECTURE.md §3 component hierarchy).
+//
+// Content is Sanity-owned (docs/MASTER-PROJECT-SPEC.md §18: "Footer
+// content" → Sanity) — fetched here rather than passed down from
+// Layout.astro, so this component stays self-contained. The hardcoded
+// fallback below only shows if Sanity has nothing published yet or is
+// unreachable (see src/lib/sanity.ts's fallback-chain comment).
+//
+// The year is computed, never CMS-edited — a content field for it
+// would inevitably go stale the moment nobody remembers to update it
+// every January 1st.
+import { getSiteSettings, getFooterContent } from "../../lib/sanity";
+
+const year = new Date().getFullYear();
+
+const [siteSettings, footerContent] = await Promise.all([
+  getSiteSettings(),
+  getFooterContent(),
+]);
+
+const siteName = siteSettings?.siteName ?? "Folio & Co.";
+const description =
+  footerContent?.description ??
+  "A small, independent bookshop for readers who like to take their time.";
+const columns = footerContent?.columns ?? [
+  {
+    heading: "Explore",
+    columnType: "links" as const,
+    links: [
+      { label: "Home", href: "/" },
+      { label: "All books", href: "/books" },
+    ],
+  },
+  {
+    heading: "Visit",
+    columnType: "text" as const,
+    text: "14 Harbor Lane\nPortsmouth, NH\nOpen daily, 9am–7pm",
+  },
+  {
+    heading: "Follow",
+    columnType: "text" as const,
+    text: "Sign up in store for our monthly reading list — no newsletter form here yet.",
+  },
+];
+const copyrightSuffix = footerContent?.copyrightSuffix ?? "Shipping & returns · Privacy";
+---
+
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div class="site-footer__content">
+      <div class="site-footer__brand">
+        <p class="site-footer__wordmark">{siteName}</p>
+        <p class="site-footer__description">{description}</p>
+      </div>
+
+      {columns.map((column) =>
+        column.columnType === "links" ? (
+          <nav class="site-footer__column" aria-label={column.heading}>
+            <h2>{column.heading}</h2>
+            <ul>
+              {(column.links ?? []).map((navLink) => (
+                <li>
+                  <a href={navLink.href}>{navLink.label}</a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ) : (
+          <div class="site-footer__column">
+            <h2>{column.heading}</h2>
+            {(column.text ?? "").split("\n").map((line) => <p>{line}</p>)}
+          </div>
+        ),
+      )}
+    </div>
+
+    <div class="site-footer__divider" role="presentation"></div>
+
+    <p class="site-footer__copyright">
+      &copy; {year} {siteName} · {copyrightSuffix}
+    </p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    background-color: var(--color-ink);
+    color: var(--color-surface);
+  }
+
+  .site-footer__inner {
+    max-width: var(--container-width);
+    margin-inline: auto;
+    padding: var(--space-12) var(--space-16);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .site-footer__content {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--space-8);
+  }
+
+  .site-footer__wordmark {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    color: var(--color-surface);
+  }
+
+  .site-footer__description {
+    margin-top: var(--space-2);
+    max-width: 32ch;
+    font-size: 0.8125rem;
+    color: #bdb7ab;
+    line-height: var(--line-height-relaxed);
+  }
+
+  .site-footer__column h2 {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-surface);
+    margin-bottom: var(--space-3);
+  }
+
+  .site-footer__column ul {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .site-footer__column a,
+  .site-footer__column p {
+    font-size: var(--font-size-sm);
+    color: #bdb7ab;
+    line-height: var(--line-height-relaxed);
+  }
+
+  .site-footer__column a:hover {
+    color: var(--color-surface);
+  }
+
+  .site-footer__divider {
+    height: 1px;
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .site-footer__copyright {
+    font-size: 0.6875rem;
+    color: #8e887e;
+    text-align: center;
+  }
+</style>

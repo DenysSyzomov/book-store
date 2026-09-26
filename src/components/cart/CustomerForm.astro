@@ -1,0 +1,170 @@
+---
+// Customer-information form (docs/MASTER-PROJECT-SPEC.md §11). No
+// Figma reference exists for this screen (docs/DESIGN-SYSTEM.md, open
+// question #7) — field choice and layout follow src/types/order.ts's
+// `OrderInput` shape instead (name + email required, phone/notes
+// optional), styled to match the rest of the drawer.
+//
+// `novalidate` turns off the browser's own validation bubble UI so
+// CartDrawer's script can show errors inline, next to each field, in a
+// style consistent with the rest of the site — the browser still runs
+// real HTML validation attributes (`required`, `type="email"`), we're
+// just choosing how to *display* the result.
+import Button from "../ui/Button.astro";
+
+// introText is Sanity-owned cart wording (CartDrawer.astro fetches it
+// once via getCartMessages() and passes it down) — this component
+// stays presentational and just renders whatever it's given, same as
+// every other prop-driven component in this project.
+interface Props {
+  introText: string;
+}
+
+const { introText } = Astro.props;
+---
+
+<form class="cart-form" id="customer-form" novalidate>
+  <h3 class="cart-form__heading">Your details</h3>
+  <p class="cart-form__intro">{introText}</p>
+
+  <div class="cart-form__field">
+    <label for="customer-name">Full name</label>
+    <input
+      id="customer-name"
+      name="customerName"
+      type="text"
+      autocomplete="name"
+      required
+      maxlength="200"
+      aria-describedby="customer-name-error"
+    />
+    <p class="cart-form__error" id="customer-name-error" role="alert"></p>
+  </div>
+
+  <div class="cart-form__field">
+    <label for="customer-email">Email</label>
+    <input
+      id="customer-email"
+      name="email"
+      type="email"
+      autocomplete="email"
+      required
+      maxlength="254"
+      aria-describedby="customer-email-error"
+    />
+    <p class="cart-form__error" id="customer-email-error" role="alert"></p>
+  </div>
+
+  <div class="cart-form__field">
+    <label for="customer-phone">
+      Phone <span class="cart-form__optional">(optional)</span>
+    </label>
+    <input
+      id="customer-phone"
+      name="phone"
+      type="tel"
+      autocomplete="tel"
+      maxlength="32"
+      aria-describedby="customer-phone-error"
+    />
+    <p class="cart-form__error" id="customer-phone-error" role="alert"></p>
+  </div>
+
+  <div class="cart-form__field">
+    <label for="customer-notes">
+      Notes <span class="cart-form__optional">(optional)</span>
+    </label>
+    <textarea
+      id="customer-notes"
+      name="notes"
+      rows="3"
+      maxlength="2000"
+      aria-describedby="customer-notes-error"
+    ></textarea>
+    <p class="cart-form__error" id="customer-notes-error" role="alert"></p>
+  </div>
+
+  <p
+    class="cart-form__error cart-form__error--form"
+    data-form-error
+    role="alert"
+  ></p>
+
+  <div class="cart-form__actions">
+    <Button type="button" variant="secondary" data-action="back-to-bag">
+      Back to bag
+    </Button>
+    <Button type="submit" data-action="submit-order">
+      <span data-field="submit-label">Submit request</span>
+    </Button>
+  </div>
+</form>
+
+<style>
+  .cart-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .cart-form__heading {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.5rem;
+  }
+
+  .cart-form__intro {
+    font-size: var(--font-size-sm);
+    color: var(--color-muted);
+  }
+
+  .cart-form__field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .cart-form__field label {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+  }
+
+  .cart-form__optional {
+    font-weight: 400;
+    color: var(--color-muted);
+  }
+
+  .cart-form__field input,
+  .cart-form__field textarea {
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background-color: var(--color-surface);
+    resize: vertical;
+  }
+
+  .cart-form__field input[aria-invalid="true"],
+  .cart-form__field textarea[aria-invalid="true"] {
+    border-color: var(--color-oxblood);
+  }
+
+  .cart-form__error {
+    min-height: 1em;
+    font-size: 0.75rem;
+    color: var(--color-oxblood);
+  }
+
+  .cart-form__error--form:empty {
+    display: none;
+  }
+
+  .cart-form__actions {
+    display: flex;
+    gap: var(--space-3);
+    margin-top: var(--space-2);
+  }
+
+  .cart-form__actions :global(.button) {
+    flex: 1;
+  }
+</style>

@@ -1,0 +1,154 @@
+---
+// Homepage: Hero -> New arrivals slider -> value props -> Footer
+// (docs/DESIGN-SYSTEM.md "Bookstore home"). Books come through the
+// data-access layer (src/lib/books.ts), never the mock array directly.
+// Everything else on this page — hero copy, section intro, value
+// props, SEO — comes through src/lib/sanity.ts (docs/MASTER-PROJECT-
+// SPEC.md §17-19), each with a hardcoded fallback right here so the
+// page still reads correctly even before a content manager has
+// published anything.
+import Layout from "../layouts/Layout.astro";
+import Hero from "../components/Hero.astro";
+import BookSlider from "../components/book/BookSlider.astro";
+import Container from "../components/ui/Container.astro";
+import Footer from "../components/layout/Footer.astro";
+import { getFeaturedBooks } from "../lib/books";
+import { getHomepageContent, getSeoSettings } from "../lib/sanity";
+import { buildSiteSchemas } from "../lib/seo";
+import { urlFor } from "../lib/sanityImage";
+
+// Build-time HTML, not per-request SSR — see astro.config.mjs for why
+// this is needed now that `output` is "server" (Phase 4's API routes).
+export const prerender = true;
+
+const [featuredBooks, homepage, seoSettings] = await Promise.all([
+  getFeaturedBooks(),
+  getHomepageContent(),
+  getSeoSettings(),
+]);
+
+// WebSite + Organization (docs/MASTER-PROJECT-SPEC.md §30: "Homepage
+// may contain") — the only page these two site-level schemas belong
+// on, so rendering them here (and nowhere else) is what keeps them
+// from being declared more than once across the site.
+const siteJsonLd = Astro.site ? buildSiteSchemas(Astro.site.toString()) : undefined;
+
+// Each fallback below is what this page said before Sanity owned it —
+// real content, not a placeholder, so the site never regresses to
+// "Lorem ipsum" if the CMS is empty or briefly unreachable
+// (src/lib/sanity.ts's fallback-chain comment explains why every
+// getter degrades this way instead of throwing).
+const hero = homepage?.hero ?? {
+  eyebrow: "Freshly shelved",
+  heading: "Books worth slowing down for",
+  description:
+    "A small, independent shop for readers who like to take their time — new arrivals, staff picks, and a few quiet classics.",
+  primaryCta: { label: "Explore the collection", href: "/books" },
+  secondaryCta: { label: "Read our journal", href: "/books" },
+};
+
+const newArrivals = homepage?.newArrivals ?? {
+  eyebrow: "New & noteworthy",
+  heading: "New arrivals",
+  description: "Fresh off the shelf this month, picked by our booksellers.",
+};
+
+const promises = homepage?.promises?.length
+  ? homepage.promises
+  : [
+      {
+        heading: "Hand-picked, always",
+        description:
+          "Every title on these shelves was read and chosen by our own booksellers.",
+      },
+      {
+        heading: "Ships in 1–2 days",
+        description:
+          "Orders placed before 3pm go out the same day, straight from the shop.",
+      },
+      {
+        heading: "Real people, real advice",
+        description:
+          "Stuck on what to read next? Just ask — we love a good recommendation.",
+      },
+    ];
+
+// SEO fallback chain: this page's own Sanity fields -> sitewide Sanity
+// defaults -> hardcoded default. See src/components/SEO.astro and
+// docs/MASTER-PROJECT-SPEC.md §29's "every indexable page must have a
+// unique title/description" — this page always has one, from one of
+// three sources.
+const seoTitle =
+  homepage?.seo?.seoTitle ?? seoSettings?.defaultTitle ?? "Folio & Co. — Independent Book Store";
+const seoDescription =
+  homepage?.seo?.seoDescription ??
+  seoSettings?.defaultDescription ??
+  "A small, independent online book store — hand-picked fiction, nonfiction, and poetry, shipped from our shop to your door.";
+const shareImageSource = homepage?.seo?.shareImage ?? seoSettings?.defaultShareImage;
+const shareImage = shareImageSource
+  ? urlFor(shareImageSource).width(1200).height(630).fit("crop").url()
+  : undefined;
+---
+
+<Layout title={seoTitle} description={seoDescription} image={shareImage} jsonLd={siteJsonLd}>
+  <Hero
+    eyebrow={hero.eyebrow}
+    title={hero.heading}
+    description={hero.description}
+    primaryCta={hero.primaryCta}
+    secondaryCta={hero.secondaryCta}
+  />
+
+  <BookSlider
+    books={featuredBooks}
+    eyebrow={newArrivals.eyebrow}
+    title={newArrivals.heading}
+    description={newArrivals.description}
+  />
+
+  <section class="promise" aria-label="Why shop with us">
+    <Container>
+      <ul class="promise__grid">
+        {promises.map((item) => (
+          <li class="promise__item">
+            <h2>{item.heading}</h2>
+            <p>{item.description}</p>
+          </li>
+        ))}
+      </ul>
+    </Container>
+  </section>
+
+  <Footer />
+</Layout>
+
+<style>
+  .promise {
+    padding-block: var(--space-12);
+  }
+
+  .promise__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-8);
+  }
+
+  .promise__item h2 {
+    font-family: var(--font-display);
+    font-size: 1.375rem;
+    font-weight: 600;
+    margin-bottom: var(--space-2);
+  }
+
+  .promise__item p {
+    color: var(--color-muted);
+    font-size: 0.875rem;
+    line-height: var(--line-height-relaxed);
+  }
+
+  @media (max-width: 768px) {
+    .promise__grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

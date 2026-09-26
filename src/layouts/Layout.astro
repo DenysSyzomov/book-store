@@ -1,0 +1,119 @@
+---
+// Base document shell: <html>, <head>, <body>, global styles, and the
+// baseline accessibility/metadata every page needs. Now includes
+// Header and CartDrawer (Phase 3 — docs/ARCHITECTURE.md §3 component
+// hierarchy): both are identical on every page, so they belong here
+// rather than being repeated per page. Footer is NOT included here —
+// per that same hierarchy, it's rendered as the last element of each
+// page's own slotted content instead.
+// SEO (title, description, canonical, Open Graph, robots, JSON-LD) is
+// delegated entirely to SEO.astro (Phase 6) — this file just forwards
+// whatever a page passed in. Every page is still required to supply
+// its own `title`/`description`; there's no generic fallback here.
+import "../styles/global.css";
+import Header from "../components/layout/Header.astro";
+import CartDrawer from "../components/cart/CartDrawer.astro";
+import SEO from "../components/SEO.astro";
+import { getBooks } from "../lib/books";
+
+interface Props {
+  title: string;
+  description: string;
+  image?: string;
+  ogType?: "website" | "book";
+  bookMeta?: { author: string; isbn?: string };
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+}
+
+const { title, description, image, ogType, bookMeta, jsonLd } = Astro.props;
+
+// The cart (src/lib/cart.ts) only ever stores { bookId, quantity } — it
+// never stores a price, title, or cover, so it can't be tricked into
+// trusting stale/tampered values for money. That means the drawer needs
+// some other way to turn a bare id back into something a person can
+// read. Rather than a client-side fetch, we just embed the same
+// getBooks() data every page already renders from, once, as JSON — the
+// browser reads it out of the DOM (src/lib/catalog.ts), no network
+// round-trip needed. `<` escapes any literal "<" so a book title
+// can never accidentally close this <script> tag early.
+const allBooks = await getBooks();
+const catalogJson = JSON.stringify(
+  allBooks.map(({ id, slug, title, author, imageUrl, price, stock }) => ({
+    id,
+    slug,
+    title,
+    author,
+    imageUrl,
+    price,
+    stock,
+  })),
+).replace(/</g, "\\u003c");
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <SEO
+      title={title}
+      description={description}
+      image={image}
+      ogType={ogType}
+      bookMeta={bookMeta}
+      jsonLd={jsonLd}
+    />
+    {/* Classic (non-module), render-blocking script placed as early as
+       possible: it runs before <body> paints anything, which is what
+       lets global.css hide [data-reveal] elements only under `.js`
+       with zero flash of hidden-then-shown content. Without real JS
+       running, this line never executes, `.js` never gets added, and
+       [data-reveal] elements are simply visible — see that CSS rule's
+       comment for why that matters. */}
+    <script is:inline>
+      document.documentElement.classList.add("js");
+    </script>
+  </head>
+  <body>
+    <a href="#main-content" class="skip-link visually-hidden">
+      Skip to main content
+    </a>
+    <Header />
+    <main id="main-content">
+      <slot />
+    </main>
+    <CartDrawer />
+    <script
+      is:inline
+      type="application/json"
+      id="book-catalog"
+      set:html={catalogJson}
+    />
+    <script>
+      import { initReveal } from "../lib/reveal";
+      initReveal();
+    </script>
+  </body>
+</html>
+
+<style>
+  /* A skip link must stay hidden until it receives keyboard focus, then
+     become visible so a sighted keyboard user can actually see and use
+     it — .visually-hidden alone would hide it permanently. */
+  .skip-link:focus {
+    position: fixed;
+    top: var(--space-2);
+    left: var(--space-2);
+    z-index: 100;
+    width: auto;
+    height: auto;
+    padding: var(--space-2) var(--space-4);
+    clip: auto;
+    overflow: visible;
+    background: var(--color-surface);
+    color: var(--color-ink);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-card);
+  }
+</style>

@@ -1,0 +1,637 @@
+---
+// The cart drawer (docs/AGENT-WORKFLOW.md §17, docs/DESIGN-SYSTEM.md
+// "Cart / Drawer"). Mounted once in Layout.astro, available on every
+// page. This is the one place cart state is actually *displayed* —
+// src/lib/cart.ts is the one place it's *stored*; this file's script
+// just renders whatever that module says is true, and calls back into
+// it when the visitor clicks something.
+//
+// Three "views" live inside the same dialog, toggled with the `hidden`
+// attribute rather than three separate dialogs: the item list (with an
+// empty state), the customer-information form, and a success screen.
+// Keeping them as one dialog means focus/Escape/backdrop-click only
+// need to be wired up once.
+import CartItem from "./CartItem.astro";
+import CartSummary from "./CartSummary.astro";
+import CustomerForm from "./CustomerForm.astro";
+import Button from "../ui/Button.astro";
+import { getCartMessages } from "../../lib/sanity";
+
+// Cart wording is Sanity-owned (docs/MASTER-PROJECT-SPEC.md §17: "Cart
+// messages", "Empty cart message", "Success message") — the hardcoded
+// values below only show if Sanity has nothing published yet or is
+// unreachable (src/lib/sanity.ts's fallback-chain comment). Everything
+// else in this file (view-switching, focus handling, checkout/submit
+// logic) is structure and behavior, not editorial copy, and stays in
+// code either way.
+const cartMessages = await getCartMessages();
+
+const emptyTitle = cartMessages?.emptyTitle ?? "Your bag is empty.";
+const emptyHint = cartMessages?.emptyHint ?? "Items you add will show up here.";
+const checkoutFormIntro =
+  cartMessages?.checkoutFormIntro ??
+  "No payment is collected here — we'll follow up to confirm your order.";
+const successTitle = cartMessages?.successTitle ?? "Thank you";
+const successMessage =
+  cartMessages?.successMessage ??
+  "Your order request has been received. We'll be in touch to confirm the details — no payment has been taken.";
+const continueShoppingLabel = cartMessages?.continueShoppingLabel ?? "Continue shopping";
+---
+
+<div id="cart-drawer" class="cart-drawer" hidden>
+  <div class="cart-drawer__backdrop" data-cart-close></div>
+
+  <div
+    class="cart-drawer__panel"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="cart-drawer-title"
+    tabindex="-1"
+  >
+    <div class="cart-drawer__header">
+      <div>
+        <h2 id="cart-drawer-title">Your bag</h2>
+        <p class="cart-drawer__count" data-field="count">0 items</p>
+      </div>
+      <button
+        type="button"
+        class="cart-drawer__close"
+        data-cart-close
+        aria-label="Close cart"
+      >
+        &times;
+      </button>
+    </div>
+
+    <div class="cart-drawer__body">
+      <div data-cart-view="items">
+        <div class="cart-drawer__empty" data-cart-empty>
+          <p>{emptyTitle}</p>
+          <p class="cart-drawer__empty-hint">{emptyHint}</p>
+        </div>
+
+        <ul class="cart-drawer__items" data-cart-items></ul>
+
+        <p class="cart-drawer__notice" data-cart-notice hidden></p>
+
+        <CartSummary />
+      </div>
+
+      <div data-cart-view="form" hidden>
+        <CustomerForm introText={checkoutFormIntro} />
+      </div>
+
+      <div data-cart-view="success" hidden>
+        <div class="cart-drawer__success">
+          <h3>{successTitle}</h3>
+          <p>{successMessage}</p>
+          <p class="cart-drawer__reference" data-field="order-reference"></p>
+          <Button type="button" data-cart-close>{continueShoppingLabel}</Button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <CartItem />
+</div>
+
+<style>
+  .cart-drawer {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+  }
+
+  .cart-drawer__backdrop {
+    position: absolute;
+    inset: 0;
+    background-color: rgba(25, 19, 14, 0.4);
+  }
+
+  .cart-drawer__panel {
+    position: absolute;
+    top: 32px;
+    right: 60px;
+    width: 500px;
+    max-width: calc(100% - 32px);
+    max-height: calc(100% - 64px);
+    overflow-y: auto;
+    background-color: var(--color-surface);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-panel);
+    padding: var(--space-8);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .cart-drawer__panel:focus-visible {
+    outline: none;
+  }
+
+  .cart-drawer__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .cart-drawer__header h2 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.75rem;
+  }
+
+  .cart-drawer__count {
+    margin-top: var(--space-1);
+    font-size: 0.6875rem;
+    color: var(--color-muted);
+  }
+
+  .cart-drawer__close {
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--color-ink);
+  }
+
+  .cart-drawer__empty {
+    color: var(--color-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .cart-drawer__empty-hint {
+    margin-top: var(--space-2);
+  }
+
+  .cart-drawer__items {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cart-drawer__notice {
+    padding: var(--space-3);
+    border-radius: var(--radius-sm);
+    background-color: var(--color-paper);
+    color: var(--color-oxblood);
+    font-size: 0.75rem;
+  }
+
+  .cart-drawer__notice[hidden] {
+    display: none;
+  }
+
+  .cart-drawer__success {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    text-align: center;
+    padding-block: var(--space-8);
+  }
+
+  .cart-drawer__success h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.75rem;
+  }
+
+  .cart-drawer__success p {
+    color: var(--color-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .cart-drawer__reference {
+    font-weight: 600;
+    color: var(--color-ink) !important;
+  }
+
+  @media (max-width: 640px) {
+    .cart-drawer__panel {
+      top: 0;
+      right: 0;
+      width: 100%;
+      max-width: 100%;
+      height: 100%;
+      max-height: 100%;
+      border-radius: 0;
+    }
+  }
+</style>
+
+<script>
+  import {
+    getCart,
+    removeItem,
+    increaseQuantity,
+    decreaseQuantity,
+    setQuantity,
+    clearCart,
+    getTotalQuantity,
+    getSubtotal,
+    CART_CHANGE_EVENT,
+  } from "../../lib/cart";
+  import { getCatalog, type CatalogEntry } from "../../lib/catalog";
+  import { validateCustomerFields, type FieldErrors } from "../../lib/validation";
+  import type { CartItem } from "../../types/cart";
+  import type { OrderItemIssue, OrderSubmitResult } from "../../types/order";
+
+  const root = document.getElementById("cart-drawer");
+  const template = document.getElementById(
+    "cart-item-template",
+  ) as HTMLTemplateElement | null;
+
+  // Every DOM lookup below runs once, up front, and gets reused — the
+  // usual pattern for a script that reacts to events rather than
+  // running top-to-bottom once. If this component isn't on the page
+  // for some reason, `root` is null and everything after this guard
+  // simply doesn't run.
+  if (root && template) {
+    const panel = root.querySelector<HTMLElement>(".cart-drawer__panel");
+    const itemsList = root.querySelector<HTMLUListElement>("[data-cart-items]");
+    const emptyState = root.querySelector<HTMLElement>("[data-cart-empty]");
+    const summary = root.querySelector<HTMLElement>("[data-cart-summary]");
+    const notice = root.querySelector<HTMLElement>("[data-cart-notice]");
+    const countField = root.querySelector<HTMLElement>('[data-field="count"]');
+    const subtotalField = root.querySelector<HTMLElement>('[data-field="subtotal"]');
+    const checkoutLabel = root.querySelector<HTMLElement>('[data-field="checkout-label"]');
+    const checkoutButton = root.querySelector<HTMLButtonElement>('[data-action="checkout"]');
+    const orderReference = root.querySelector<HTMLElement>('[data-field="order-reference"]');
+
+    const views: Record<"items" | "form" | "success", HTMLElement | null> = {
+      items: root.querySelector('[data-cart-view="items"]'),
+      form: root.querySelector('[data-cart-view="form"]'),
+      success: root.querySelector('[data-cart-view="success"]'),
+    };
+
+    const form = root.querySelector<HTMLFormElement>("#customer-form");
+    const submitButton = form?.querySelector<HTMLButtonElement>('[data-action="submit-order"]') ?? null;
+    const submitLabel = form?.querySelector<HTMLElement>('[data-field="submit-label"]') ?? null;
+    const formError = form?.querySelector<HTMLElement>("[data-form-error]") ?? null;
+
+    const currency = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    });
+
+    // A closure over `lastFocused`: `openDrawer`/`closeDrawer` are the
+    // only functions that read or write it, and it keeps its value
+    // between calls without being a global — the same idea `src/lib/
+    // cart.ts` uses for its in-module `cache`.
+    let lastFocused: HTMLElement | null = null;
+
+    function setView(view: keyof typeof views): void {
+      for (const key of Object.keys(views) as (keyof typeof views)[]) {
+        const el = views[key];
+        if (el) el.hidden = key !== view;
+      }
+    }
+
+    function setNotice(message: string): void {
+      if (!notice) return;
+      notice.hidden = message.length === 0;
+      notice.textContent = message;
+    }
+
+    /** Rebuilds everything the drawer shows, from the cart's current state. */
+    function render(): void {
+      const items = getCart();
+      const catalog = getCatalog();
+      const totalQuantity = getTotalQuantity(items);
+
+      if (countField) {
+        countField.textContent = `${totalQuantity} ${totalQuantity === 1 ? "item" : "items"}`;
+      }
+
+      const isEmpty = items.length === 0;
+      if (emptyState) emptyState.hidden = !isEmpty;
+      if (itemsList) itemsList.hidden = isEmpty;
+      if (summary) summary.hidden = isEmpty;
+
+      if (itemsList) {
+        itemsList.innerHTML = "";
+        for (const item of items) {
+          const row = buildRow(item, catalog.get(item.bookId));
+          if (row) itemsList.appendChild(row);
+        }
+      }
+
+      const subtotal = getSubtotal(items, (bookId) => catalog.get(bookId)?.price);
+      if (subtotalField) subtotalField.textContent = currency.format(subtotal);
+      if (checkoutLabel) {
+        checkoutLabel.textContent = `Checkout · ${currency.format(subtotal)}`;
+      }
+      if (checkoutButton) checkoutButton.disabled = isEmpty;
+    }
+
+    /** Clones the <template> in CartItem.astro and fills in one row. */
+    function buildRow(item: CartItem, entry: CatalogEntry | undefined): HTMLLIElement | null {
+      const fragment = template!.content.cloneNode(true) as DocumentFragment;
+      const row = fragment.querySelector<HTMLLIElement>("[data-cart-item]");
+      if (!row) return null;
+
+      row.dataset.bookId = item.bookId;
+      const title = entry?.title ?? "Item no longer available";
+
+      const cover = row.querySelector<HTMLImageElement>('[data-field="cover"]');
+      const titleEl = row.querySelector('[data-field="title"]');
+      const authorEl = row.querySelector('[data-field="author"]');
+      const quantityEl = row.querySelector('[data-field="quantity"]');
+      const priceEl = row.querySelector('[data-field="price"]');
+      const decreaseButton = row.querySelector<HTMLButtonElement>('[data-action="decrease"]');
+      const increaseButton = row.querySelector<HTMLButtonElement>('[data-action="increase"]');
+      const removeButton = row.querySelector<HTMLButtonElement>('[data-action="remove"]');
+
+      if (cover && entry) cover.src = entry.imageUrl;
+      if (titleEl) titleEl.textContent = title;
+      if (authorEl) authorEl.textContent = entry?.author ?? "";
+      if (quantityEl) quantityEl.textContent = String(item.quantity);
+      if (priceEl) {
+        priceEl.textContent = entry ? currency.format(entry.price * item.quantity) : "";
+      }
+
+      // Reaching real stock (or the book no longer existing at all) both
+      // disable "+" — the store itself has no idea what a book's stock
+      // is (src/lib/cart.ts never imports book data), so this button's
+      // disabled state is the only thing stopping someone from piling
+      // up more than exists. The server checks again anyway (see
+      // src/lib/orders.ts) in case this is ever bypassed.
+      const atMax = !entry || item.quantity >= entry.stock;
+
+      if (decreaseButton) {
+        decreaseButton.setAttribute("aria-label", `Decrease quantity of ${title}`);
+        decreaseButton.addEventListener("click", () => {
+          decreaseQuantity(item.bookId);
+          focusRowControl(item.bookId, "decrease");
+        });
+      }
+      if (increaseButton) {
+        increaseButton.setAttribute("aria-label", `Increase quantity of ${title}`);
+        increaseButton.disabled = atMax;
+        increaseButton.addEventListener("click", () => {
+          increaseQuantity(item.bookId);
+          focusRowControl(item.bookId, "increase");
+        });
+      }
+      if (removeButton) {
+        removeButton.setAttribute("aria-label", `Remove ${title} from bag`);
+        removeButton.addEventListener("click", () => {
+          removeItem(item.bookId);
+          focusRowControl(item.bookId, "remove");
+        });
+      }
+
+      return row;
+    }
+
+    /**
+     * Every cart mutation above re-renders the whole list, which
+     * replaces the very button someone just clicked with a new DOM
+     * node — without this, focus would silently fall back to <body>
+     * after every click, which is unusable with a keyboard. This finds
+     * the freshly-rendered equivalent control and focuses it instead.
+     */
+    function focusRowControl(
+      bookId: string,
+      action: "decrease" | "increase" | "remove",
+    ): void {
+      const row = itemsList?.querySelector<HTMLElement>(
+        `[data-book-id="${CSS.escape(bookId)}"]`,
+      );
+      if (!row) {
+        const fallback = checkoutButton && !checkoutButton.disabled ? checkoutButton : panel;
+        fallback?.focus();
+        return;
+      }
+      const preferred = row.querySelector<HTMLButtonElement>(`[data-action="${action}"]`);
+      const target =
+        preferred && !preferred.disabled
+          ? preferred
+          : row.querySelector<HTMLButtonElement>('[data-action="remove"]');
+      target?.focus();
+    }
+
+    /** Applies server-reported corrections and returns human-readable messages. */
+    function applyItemIssues(issues: OrderItemIssue[]): string[] {
+      const catalog = getCatalog();
+      const messages: string[] = [];
+      for (const issue of issues) {
+        const name = catalog.get(issue.bookId)?.title ?? "An item";
+        if (issue.reason === "unavailable") {
+          removeItem(issue.bookId);
+          messages.push(`${name} is no longer available and was removed from your bag.`);
+        } else {
+          setQuantity(issue.bookId, issue.adjustedQuantity ?? 1);
+          messages.push(`${name} quantity was reduced to ${issue.adjustedQuantity} (limited stock).`);
+        }
+      }
+      return messages;
+    }
+
+    // --- Open / close, focus trap, Escape, backdrop click ---------------
+
+    function setBackgroundInert(active: boolean): void {
+      const header = document.querySelector<HTMLElement>(".site-header");
+      const main = document.getElementById("main-content");
+      for (const el of [header, main]) {
+        if (!el) continue;
+        // `inert` (a real HTML attribute) removes an element's whole
+        // subtree from focus, pointer interaction, and the
+        // accessibility tree in one step — exactly "prevent accidental
+        // background interaction while open," without disabling every
+        // link and button in it by hand.
+        if (active) {
+          el.setAttribute("inert", "");
+        } else {
+          el.removeAttribute("inert");
+        }
+      }
+    }
+
+    function getFocusable(): HTMLElement[] {
+      if (!panel) return [];
+      const selector =
+        'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+      return Array.from(panel.querySelectorAll<HTMLElement>(selector)).filter(
+        // offsetParent is null for anything under a hidden ancestor
+        // (the two inactive views) — this keeps the trap scoped to
+        // whichever view is actually visible right now.
+        (el) => el.offsetParent !== null,
+      );
+    }
+
+    function onKeydown(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeDrawer();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const focusable = getFocusable();
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    function openDrawer(trigger?: HTMLElement): void {
+      lastFocused = trigger ?? (document.activeElement as HTMLElement | null);
+      root!.hidden = false;
+      document.body.style.overflow = "hidden";
+      setBackgroundInert(true);
+      document.addEventListener("keydown", onKeydown);
+      panel?.focus();
+    }
+
+    function closeDrawer(): void {
+      if (root!.hidden) return;
+      root!.hidden = true;
+      document.body.style.overflow = "";
+      setBackgroundInert(false);
+      document.removeEventListener("keydown", onKeydown);
+      setView("items");
+      setNotice("");
+      showFieldErrors({});
+      if (formError) formError.textContent = "";
+      lastFocused?.focus();
+    }
+
+    document.querySelectorAll<HTMLElement>("[data-cart-trigger]").forEach((trigger) => {
+      trigger.addEventListener("click", () => openDrawer(trigger));
+    });
+    root.querySelectorAll<HTMLElement>("[data-cart-close]").forEach((button) => {
+      button.addEventListener("click", () => closeDrawer());
+    });
+
+    // --- Checkout: re-validate against the server before showing the form ---
+
+    checkoutButton?.addEventListener("click", async () => {
+      const items = getCart();
+      if (items.length === 0) return;
+
+      checkoutButton.disabled = true;
+      setNotice("");
+
+      try {
+        const response = await fetch("/api/cart/validate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items }),
+        });
+        const result: { issues?: OrderItemIssue[] } = await response.json();
+        const messages = applyItemIssues(result.issues ?? []);
+        if (messages.length > 0) setNotice(messages.join(" "));
+
+        if (getCart().length === 0) return;
+
+        setView("form");
+        form?.querySelector<HTMLInputElement>("#customer-name")?.focus();
+      } catch {
+        setNotice("Couldn't check your bag right now — please try again.");
+      } finally {
+        checkoutButton.disabled = getCart().length === 0;
+      }
+    });
+
+    root.querySelector('[data-action="back-to-bag"]')?.addEventListener("click", () => {
+      setView("items");
+    });
+
+    // --- Customer form: client-side validation, then server submission ---
+
+    function showFieldErrors(errors: FieldErrors): void {
+      const nameError = form?.querySelector<HTMLElement>("#customer-name-error");
+      const emailError = form?.querySelector<HTMLElement>("#customer-email-error");
+      const phoneError = form?.querySelector<HTMLElement>("#customer-phone-error");
+      const notesError = form?.querySelector<HTMLElement>("#customer-notes-error");
+      const nameInput = form?.querySelector<HTMLInputElement>("#customer-name");
+      const emailInput = form?.querySelector<HTMLInputElement>("#customer-email");
+      const phoneInput = form?.querySelector<HTMLInputElement>("#customer-phone");
+      const notesInput = form?.querySelector<HTMLTextAreaElement>("#customer-notes");
+
+      if (nameError) nameError.textContent = errors.customerName ?? "";
+      if (emailError) emailError.textContent = errors.email ?? "";
+      if (phoneError) phoneError.textContent = errors.phone ?? "";
+      if (notesError) notesError.textContent = errors.notes ?? "";
+      nameInput?.setAttribute("aria-invalid", errors.customerName ? "true" : "false");
+      emailInput?.setAttribute("aria-invalid", errors.email ? "true" : "false");
+      phoneInput?.setAttribute("aria-invalid", errors.phone ? "true" : "false");
+      notesInput?.setAttribute("aria-invalid", errors.notes ? "true" : "false");
+    }
+
+    form?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      // FormData reads a <form>'s current input values by each field's
+      // `name` attribute — the same values the browser would send on a
+      // real form submission, just handed to us as JS instead.
+      const data = new FormData(form);
+      const customerName = String(data.get("customerName") ?? "").trim();
+      const email = String(data.get("email") ?? "").trim();
+      const phone = String(data.get("phone") ?? "").trim();
+      const notes = String(data.get("notes") ?? "").trim();
+
+      const fieldErrors = validateCustomerFields({ customerName, email });
+      showFieldErrors(fieldErrors);
+      if (Object.keys(fieldErrors).length > 0) {
+        form.querySelector<HTMLElement>(
+          fieldErrors.customerName ? "#customer-name" : "#customer-email",
+        )?.focus();
+        return;
+      }
+
+      if (formError) formError.textContent = "";
+      if (submitButton) submitButton.disabled = true;
+      if (submitLabel) submitLabel.textContent = "Submitting…";
+
+      try {
+        const response = await fetch("/api/cart/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customerName,
+            email,
+            phone: phone || undefined,
+            notes: notes || undefined,
+            items: getCart(),
+          }),
+        });
+        const result: OrderSubmitResult = await response.json();
+
+        if (result.ok) {
+          if (orderReference) orderReference.textContent = `Reference: ${result.orderId}`;
+          clearCart();
+          form.reset();
+          setView("success");
+        } else if (result.itemIssues && result.itemIssues.length > 0) {
+          const messages = applyItemIssues(result.itemIssues);
+          setView("items");
+          setNotice(`${messages.join(" ")} Please review your bag before submitting again.`);
+        } else if (result.fieldErrors) {
+          showFieldErrors(result.fieldErrors);
+          if (formError) formError.textContent = "Please fix the highlighted fields.";
+        } else if (formError) {
+          formError.textContent = "We couldn't submit your request. Please try again.";
+        }
+      } catch {
+        if (formError) formError.textContent = "Something went wrong — please try again.";
+      } finally {
+        if (submitButton) submitButton.disabled = false;
+        if (submitLabel) submitLabel.textContent = "Submit request";
+      }
+    });
+
+    // Re-render whenever ANY script on the page changes the cart (an
+    // "Add to bag" click on the book detail page, this drawer's own
+    // stepper buttons, another browser tab writing to the same
+    // localStorage key) — see src/lib/cart.ts for how CART_CHANGE_EVENT
+    // gets fired.
+    window.addEventListener(CART_CHANGE_EVENT, render);
+    render();
+  }
+</script>

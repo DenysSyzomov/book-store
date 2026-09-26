@@ -1,0 +1,131 @@
+---
+// One cart line row (docs/DESIGN-SYSTEM.md "Cart line-item card":
+// 90×126px cover + title/author/stepper/price, hairline border under
+// each row). Unlike every other component in this project, this one is
+// never rendered as `<CartItem book={...} />` — the cart's contents are
+// pure client-state (localStorage), unknown at server-render time, so
+// there's no Book object to pass in as a prop yet.
+//
+// Instead this renders a single `<template>` element: inert markup the
+// browser parses but never displays or runs scripts inside. CartDrawer's
+// script clones it once per cart item with `.content.cloneNode(true)`
+// and fills in the blanks via the `data-field`/`data-action` hooks
+// below — the same "define the shape once, stamp it N times" idea as
+// an Astro component, just done at runtime instead of at build time.
+---
+
+<template id="cart-item-template">
+  <li class="cart-item" data-cart-item>
+    <img class="cart-item__cover" data-field="cover" alt="" width="90" height="126" />
+    <div class="cart-item__details">
+      <p class="cart-item__title" data-field="title"></p>
+      <p class="cart-item__author" data-field="author"></p>
+
+      <div class="cart-item__row">
+        <div class="cart-item__stepper" data-cart-stepper>
+          <button type="button" data-action="decrease" aria-label="Decrease quantity">
+            &minus;
+          </button>
+          <span class="cart-item__quantity" data-field="quantity" aria-live="polite"></span>
+          <button type="button" data-action="increase" aria-label="Increase quantity">
+            &plus;
+          </button>
+        </div>
+        <p class="cart-item__price" data-field="price"></p>
+      </div>
+
+      <button type="button" class="cart-item__remove" data-action="remove">
+        Remove
+      </button>
+    </div>
+  </li>
+</template>
+
+<style>
+  .cart-item {
+    display: flex;
+    gap: var(--space-4);
+    padding-block: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .cart-item:last-child {
+    border-bottom: none;
+  }
+
+  .cart-item__cover {
+    flex: 0 0 90px;
+    width: 90px;
+    height: 126px;
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+  }
+
+  .cart-item__details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .cart-item__title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: var(--font-size-lg);
+  }
+
+  .cart-item__author {
+    font-size: 0.75rem;
+    color: var(--color-muted);
+  }
+
+  .cart-item__row {
+    margin-top: var(--space-2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .cart-item__stepper {
+    display: inline-flex;
+    align-items: center;
+    height: 32px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+  }
+
+  .cart-item__stepper button {
+    width: 28px;
+    height: 100%;
+    font-size: var(--font-size-base);
+    color: var(--color-ink);
+  }
+
+  .cart-item__stepper button:hover {
+    background-color: var(--color-paper);
+  }
+
+  .cart-item__quantity {
+    min-width: 24px;
+    text-align: center;
+    font-size: var(--font-size-sm);
+  }
+
+  .cart-item__price {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-ink);
+  }
+
+  .cart-item__remove {
+    align-self: flex-start;
+    margin-top: var(--space-1);
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    text-decoration: underline;
+  }
+
+  .cart-item__remove:hover {
+    color: var(--color-oxblood);
+  }
+</style>

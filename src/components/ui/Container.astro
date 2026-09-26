@@ -1,0 +1,33 @@
+---
+// Centers content to the design's 1312px content width with a 64px
+// gutter (docs/DESIGN-SYSTEM.md "Containers"). Every section that
+// aligns to the shared content column should render through this
+// instead of repeating the max-width/padding rule.
+interface Props {
+  /** Element to render as. Defaults to "div" for a plain wrapper. */
+  as?: "div" | "section" | "article";
+  class?: string;
+}
+
+const { as: Tag = "div", class: className } = Astro.props;
+const classes = ["container", className].filter(Boolean).join(" ");
+---
+
+<Tag class={classes}>
+  <slot />
+</Tag>
+
+<style>
+  .container {
+    width: 100%;
+    max-width: var(--container-width);
+    margin-inline: auto;
+    padding-inline: var(--space-16);
+  }
+
+  @media (max-width: 640px) {
+    .container {
+      padding-inline: var(--space-4);
+    }
+  }
+</style>

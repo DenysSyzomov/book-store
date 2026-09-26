@@ -1,0 +1,58 @@
+---
+// Eyebrow + heading + optional supporting text, repeated across
+// "New arrivals", the books-page intro, and "Related books"
+// (docs/DESIGN-SYSTEM.md "Reusable UI Patterns" #5). `level` picks the
+// heading tag so each page keeps a correct, single-h1 heading order
+// (docs/MASTER-PROJECT-SPEC.md §25) instead of every section hardcoding <h2>.
+interface Props {
+  eyebrow?: string;
+  title: string;
+  description?: string;
+  level?: "h1" | "h2";
+}
+
+const { eyebrow, title, description, level: Level = "h2" } = Astro.props;
+---
+
+{/* data-reveal (src/lib/reveal.ts, docs/MASTER-PROJECT-SPEC.md §26): every
+   section on the site opens with the same heading component, so opting
+   in here is what gives every section a consistent, subtle entrance —
+   without needing to remember to add it at each of this component's
+   call sites individually. */}
+<div class="section-heading" data-reveal>
+  {eyebrow && <p class="section-heading__eyebrow">{eyebrow}</p>}
+  <Level class="section-heading__title">{title}</Level>
+  {description && <p class="section-heading__description">{description}</p>}
+</div>
+
+<style>
+  .section-heading {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    max-width: 640px;
+  }
+
+  .section-heading__eyebrow {
+    font-family: var(--font-body);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-oxblood);
+  }
+
+  .section-heading__title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: var(--font-size-xl);
+    color: var(--color-ink);
+  }
+
+  .section-heading__description {
+    font-family: var(--font-body);
+    font-size: 0.9375rem;
+    line-height: var(--line-height-relaxed);
+    color: var(--color-muted);
+  }
+</style>

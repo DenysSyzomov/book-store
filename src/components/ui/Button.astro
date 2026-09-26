@@ -1,0 +1,108 @@
+---
+// Shared button/link component (docs/DESIGN-SYSTEM.md "Buttons").
+// Renders an <a> when given an `href`, a <button> otherwise, so the
+// element the browser actually receives always matches what it's
+// used for — a link that only *looks* like a button is a common
+// accessibility bug (it doesn't respond to Space, isn't announced as
+// a link by some assistive tech, etc).
+//
+// Design decision: the Figma "Outline" variant is visually identical
+// to "Primary" in the extracted styles (docs/DESIGN-SYSTEM.md, Open
+// Question #4 — likely a mislabeled variant in the source file). Only
+// "primary", "secondary", and "text" are implemented here; revisit if
+// a real outline style is confirmed with the design source later.
+export type ButtonVariant = "primary" | "secondary" | "text";
+
+interface BaseProps {
+  variant?: ButtonVariant;
+  class?: string;
+}
+
+interface LinkProps extends BaseProps {
+  href: string;
+  type?: never;
+  disabled?: never;
+}
+
+interface ButtonElementProps extends BaseProps {
+  href?: never;
+  type?: "button" | "submit" | "reset";
+  disabled?: boolean;
+}
+
+type Props = LinkProps | ButtonElementProps;
+
+const { variant = "primary", class: className, ...rest } = Astro.props;
+const classes = ["button", `button--${variant}`, className]
+  .filter(Boolean)
+  .join(" ");
+---
+
+{/* {...rest} forwards anything not already destructured above — id,
+     data-*, aria-* — so callers can attach JS hooks (e.g. Phase 4's
+     data-action) without this component needing to know about them. */}
+{"href" in rest && rest.href ? (
+  <a {...rest} href={rest.href} class={classes}>
+    <slot />
+  </a>
+) : (
+  <button {...rest} type={rest.type ?? "button"} disabled={rest.disabled} class={classes}>
+    <slot />
+  </button>
+)}
+
+<style>
+  .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 50px;
+    padding-inline: var(--space-6);
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    font-family: var(--font-body);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    transition: background-color 0.15s ease;
+  }
+
+  .button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  .button--primary {
+    background-color: var(--color-oxblood);
+    border-color: var(--color-oxblood);
+    color: #fff;
+  }
+
+  .button--primary:not(:disabled):hover {
+    background-color: #82301f;
+  }
+
+  .button--secondary {
+    background-color: var(--color-surface);
+    border-color: var(--color-ink);
+    color: var(--color-ink);
+  }
+
+  .button--secondary:not(:disabled):hover {
+    background-color: var(--color-paper);
+  }
+
+  .button--text {
+    height: auto;
+    padding-inline: 0;
+    background: none;
+    color: var(--color-ink);
+    text-decoration: underline;
+    font-weight: 400;
+  }
+
+  .button--text:not(:disabled):hover {
+    color: var(--color-oxblood);
+  }
+</style>

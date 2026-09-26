@@ -1,0 +1,46 @@
+---
+// Static, wrapping grid of BookCards (docs/DESIGN-SYSTEM.md "Grid" —
+// 4 columns at desktop width). Used for the /books catalog and for
+// "You may also like" on the book detail page.
+//
+// Breakpoints below aren't extracted from Figma — the source file is
+// desktop-only (docs/DESIGN-SYSTEM.md "Responsive Behavior", Open
+// Question #1). 4 columns desktop / 2 tablet / 1 mobile is a standard,
+// documented engineering default, not a guess at hidden design intent.
+import type { Book } from "../../types/book";
+import BookCard from "./BookCard.astro";
+
+interface Props {
+  books: Book[];
+}
+
+const { books } = Astro.props;
+---
+
+<ul class="book-grid">
+  {books.map((book) => (
+    <li>
+      <BookCard book={book} />
+    </li>
+  ))}
+</ul>
+
+<style>
+  .book-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 54px 48px;
+  }
+
+  @media (max-width: 1024px) {
+    .book-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 560px) {
+    .book-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

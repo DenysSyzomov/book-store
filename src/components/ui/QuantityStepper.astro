@@ -1,0 +1,118 @@
+---
+// Quantity input used in the book detail buy box (docs/DESIGN-SYSTEM.md
+// "Form Elements"). The +/- buttons only adjust the local number input
+// on this page — no cart state, no events fired anywhere. Reading and
+// acting on the chosen quantity is Phase 4's job (docs/AGENT-WORKFLOW.md
+// §17); this component is UI only, per this phase's "cart shell without
+// business logic" scope.
+interface Props {
+  id: string;
+  max: number;
+  value?: number;
+}
+
+const { id, max, value = 1 } = Astro.props;
+const safeMax = Math.max(max, 1);
+---
+
+<div class="quantity-stepper" data-quantity-stepper data-max={safeMax}>
+  <button
+    type="button"
+    class="quantity-stepper__button"
+    data-step="-1"
+    aria-label="Decrease quantity"
+  >
+    &minus;
+  </button>
+  <label class="visually-hidden" for={id}>
+    Quantity
+  </label>
+  <input
+    id={id}
+    class="quantity-stepper__input"
+    type="number"
+    inputmode="numeric"
+    min="1"
+    max={safeMax}
+    step="1"
+    value={value}
+  />
+  <button
+    type="button"
+    class="quantity-stepper__button"
+    data-step="1"
+    aria-label="Increase quantity"
+  >
+    &plus;
+  </button>
+</div>
+
+<style>
+  .quantity-stepper {
+    display: inline-flex;
+    align-items: center;
+    height: 50px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+
+  .quantity-stepper__button {
+    width: 42px;
+    height: 100%;
+    font-size: var(--font-size-lg);
+    color: var(--color-ink);
+  }
+
+  .quantity-stepper__button:hover {
+    background-color: var(--color-paper);
+  }
+
+  .quantity-stepper__input {
+    width: 48px;
+    height: 100%;
+    text-align: center;
+    border: none;
+    border-inline: 1px solid var(--color-border);
+    background: none;
+    font-size: var(--font-size-sm);
+    -moz-appearance: textfield;
+  }
+
+  .quantity-stepper__input::-webkit-inner-spin-button,
+  .quantity-stepper__input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+</style>
+
+<script>
+  // Local increment/decrement only — see the file-header comment above.
+  function initQuantitySteppers(root: ParentNode) {
+    root
+      .querySelectorAll<HTMLElement>("[data-quantity-stepper]")
+      .forEach((stepper) => {
+        if (stepper.dataset.initialized === "true") return;
+        stepper.dataset.initialized = "true";
+
+        const input = stepper.querySelector<HTMLInputElement>(
+          ".quantity-stepper__input",
+        );
+        const max = Number(stepper.dataset.max ?? "1");
+        if (!input) return;
+
+        stepper
+          .querySelectorAll<HTMLButtonElement>("[data-step]")
+          .forEach((button) => {
+            button.addEventListener("click", () => {
+              const step = Number(button.dataset.step ?? "0");
+              const current = Number(input.value) || 1;
+              const next = Math.min(Math.max(current + step, 1), max);
+              input.value = String(next);
+            });
+          });
+      });
+  }
+
+  initQuantitySteppers(document);
+</script>

@@ -1,0 +1,54 @@
+/*
+  Design tokens as CSS custom properties.
+  Values are approximated from docs/DESIGN-SYSTEM.md (extracted from Figma)
+  down to a small, round scale rather than every raw pixel value —
+  see that document's own recommendation. Kept intentionally small:
+  this is not a full design system, just the values components need.
+*/
+
+:root {
+  /* Color */
+  --color-ink: #191815;
+  --color-paper: #f3efe6;
+  --color-surface: #fcfaf5;
+  --color-oxblood: #9b3a2d;
+  --color-moss: #5b6654;
+  --color-muted: #706c63;
+  --color-border: #d7d0c3;
+
+  /* Typography */
+  --font-display: "Cormorant Garamond", Georgia, serif;
+  --font-body: "Inter", system-ui, sans-serif;
+
+  --font-size-sm: 0.8125rem; /* 13px */
+  --font-size-base: 1rem; /* 16px */
+  --font-size-lg: 1.375rem; /* 22px */
+  --font-size-xl: 2.375rem; /* 38px */
+  --font-size-2xl: 3.5rem; /* 56px */
+
+  --line-height-tight: 1.1;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.7;
+
+  /* Spacing scale */
+  --space-1: 0.25rem; /* 4px */
+  --space-2: 0.5rem; /* 8px */
+  --space-3: 0.75rem; /* 12px */
+  --space-4: 1rem; /* 16px */
+  --space-6: 1.5rem; /* 24px */
+  --space-8: 2rem; /* 32px */
+  --space-12: 3rem; /* 48px */
+  --space-16: 4rem; /* 64px */
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 10px;
+  --radius-full: 999px;
+
+  /* Shadow */
+  --shadow-card: 0 10px 20px rgba(25, 19, 14, 0.13);
+  --shadow-panel: 0 18px 48px rgba(34, 27, 20, 0.16);
+
+  /* Container */
+  --container-width: 1312px;
+}

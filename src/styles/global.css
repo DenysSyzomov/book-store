@@ -1,0 +1,168 @@
+/*
+  Global base styles: a modern reset plus sane defaults, built on the
+  tokens in tokens.css. This file intentionally does NOT style any
+  specific component — component styles live next to their component
+  (docs/ARCHITECTURE.md §11). Kept small and readable on purpose.
+*/
+
+@import "./tokens.css";
+
+/* 1. Box sizing: every element sizes itself including border/padding,
+      which is what you'd expect and avoids width-calculation surprises. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* 2. Remove default margins browsers disagree on, so spacing is
+      always something we set deliberately via the token scale. */
+* {
+  margin: 0;
+}
+
+/* 3. Body defaults: base font, color, and a readable line-height. */
+body {
+  font-family: var(--font-body);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+  color: var(--color-ink);
+  background-color: var(--color-paper);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  min-height: 100vh;
+}
+
+/* 4. Headings inherit the body's color/weight by default; each page
+      opts into the display font and size explicitly, rather than every
+      <h1>-<h6> silently becoming huge everywhere. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 600;
+  line-height: var(--line-height-tight);
+}
+
+/* 5. Images and media never overflow their container, and never carry
+      the browser's default inline-gap-under-image quirk. */
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+/* 6. Anchors: no default underline/color assumptions — every real link
+      style is a deliberate component decision (see docs/DESIGN-SYSTEM.md),
+      not a browser default. */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* 7. Form controls and buttons inherit typography instead of falling
+      back to the browser/OS default UI font — this is what makes a
+      <button> and a styled <div> look consistent. */
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+/* Buttons don't get a background/border by default either — Button.astro
+   (Phase 3) decides what a button looks like; this just removes the
+   browser's opinion so that decision starts from a blank slate. */
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* 8. Lists used for navigation/UI (not prose) commonly drop marker and
+      padding — components opt back into list-style where a list is
+      actually a bulleted list of content. */
+ul,
+ol {
+  list-style: none;
+  padding: 0;
+}
+
+/* 9. Tables used for structured data (e.g. book metadata) start from
+      collapsed borders — a sensible default for a data table. */
+table {
+  border-collapse: collapse;
+}
+
+/* 10. Accessibility: visually-hidden utility for text that should reach
+       screen readers without being shown on screen (e.g. a "Skip to
+       content" link's fallback pattern, icon-only button labels). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 11. Focus visibility: every interactive element gets a clear, consistent
+       focus ring when navigated by keyboard — required by
+       docs/MASTER-PROJECT-SPEC.md §25 (accessibility). Using
+       :focus-visible (not :focus) means we don't show a ring on mouse
+       clicks, only on keyboard/assistive-tech navigation. */
+:focus-visible {
+  outline: 2px solid var(--color-oxblood);
+  outline-offset: 2px;
+}
+
+/* 12. Reduced motion: anyone with this OS-level preference set gets
+       animations effectively turned off, site-wide, by default.
+       Component-level animation (GSAP reveals, Phase 5) must still
+       check this explicitly in JS before running — this CSS rule is
+       the baseline safety net for anything done in pure CSS. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* 13. Scroll-reveal opt-in (src/lib/reveal.ts): any element marked
+       `data-reveal` starts hidden, ready for GSAP to animate in. This
+       only applies under the `.js` class Layout.astro adds with an
+       inline, render-blocking script the instant JS is confirmed to
+       be running — with JS disabled or blocked, `.js` never gets
+       added, so `data-reveal` elements are just... visible, same as
+       everything else. The animation is a progressive enhancement
+       layered on top of a page that already works without it, never
+       a requirement for seeing the content. */
+.js [data-reveal] {
+  opacity: 0;
+  transform: translateY(24px);
+}
+
+/* Reduced motion wins even over `.js`: reveal.ts also checks this
+   preference in JS (for anyone whose OS setting changes after this
+   CSS is applied), but a visitor should never see hidden content
+   flash into place while waiting on JS — this rule means they never
+   see it hidden to begin with. */
+@media (prefers-reduced-motion: reduce) {
+  .js [data-reveal] {
+    opacity: 1;
+    transform: none;
+  }
+}

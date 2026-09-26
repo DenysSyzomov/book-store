@@ -1,0 +1,70 @@
+---
+// Label/value spec table on the book detail page (docs/DESIGN-SYSTEM.md
+// "Reusable UI Patterns" #8). Only renders rows for fields the book
+// actually has — most of these are optional on the Book type
+// (docs/ARCHITECTURE.md §4), since mock/local data won't always fill
+// every field.
+import type { Book } from "../../types/book";
+
+interface Props {
+  book: Book;
+}
+
+const { book } = Astro.props;
+
+type MetadataRow = [label: string, value: string | undefined];
+
+const rows: MetadataRow[] = (
+  [
+    ["Format", book.format],
+    ["Publisher", book.publisher],
+    ["Published", book.publishedAt],
+    ["Pages", book.pageCount ? String(book.pageCount) : undefined],
+    ["ISBN", book.isbn],
+    ["Dimensions", book.dimensions],
+    ["Language", book.language],
+  ] satisfies MetadataRow[]
+).filter(([, value]) => Boolean(value));
+---
+
+{rows.length > 0 && (
+  <table class="book-metadata">
+    <caption class="visually-hidden">Book details</caption>
+    <tbody>
+      {rows.map(([label, value]) => (
+        <tr>
+          <th scope="row">{label}</th>
+          <td>{value}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+)}
+
+<style>
+  .book-metadata {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .book-metadata tr {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .book-metadata th,
+  .book-metadata td {
+    padding-block: var(--space-3);
+    text-align: left;
+    font-size: 0.8125rem;
+  }
+
+  .book-metadata th {
+    width: 40%;
+    font-weight: 500;
+    color: var(--color-muted);
+  }
+
+  .book-metadata td {
+    color: var(--color-ink);
+  }
+</style>

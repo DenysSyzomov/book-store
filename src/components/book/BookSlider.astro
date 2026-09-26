@@ -1,0 +1,217 @@
+---
+// Homepage "New arrivals" slider (docs/DESIGN-SYSTEM.md "Book Slider",
+// docs/MASTER-PROJECT-SPEC.md §27, docs/AGENT-WORKFLOW.md §18 — Phase
+// 5). Phase 3 shipped this as a native CSS scroll-snap row on purpose,
+// documented then as a placeholder for this exact phase to replace
+// with real Swiper.
+//
+// The Swiper import below is the only place in this whole project
+// Swiper is mentioned. Nothing in Layout.astro or any other page knows
+// it exists — a page that never renders <BookSlider /> never asks the
+// browser to download Swiper's JS or CSS at all, which is what
+// "keep the integration isolated" and "no unnecessary global loading"
+// (MASTER-PROJECT-SPEC.md §27) mean in practice, not just in principle.
+import "swiper/css";
+import type { Book } from "../../types/book";
+import Container from "../ui/Container.astro";
+import SectionHeading from "../ui/SectionHeading.astro";
+import BookCard from "./BookCard.astro";
+
+interface Props {
+  books: Book[];
+  eyebrow?: string;
+  title: string;
+  description?: string;
+}
+
+const { books, eyebrow, title, description } = Astro.props;
+---
+
+<section class="book-slider" aria-label={title}>
+  <Container class="book-slider__row">
+    <SectionHeading eyebrow={eyebrow} title={title} description={description} />
+
+    <div class="book-slider__nav">
+      <button
+        type="button"
+        class="book-slider__nav-button"
+        data-slider-prev
+        aria-label="Previous books"
+      >
+        &larr;
+      </button>
+      <button
+        type="button"
+        class="book-slider__nav-button book-slider__nav-button--filled"
+        data-slider-next
+        aria-label="Next books"
+      >
+        &rarr;
+      </button>
+    </div>
+  </Container>
+
+  <Container>
+    {/* This div (not the <ul>) is the element Swiper takes over — it
+       needs the "swiper" class and to be the direct parent of
+       ".swiper-wrapper" for Swiper to recognize the structure. Before
+       Swiper's JS finishes loading, `overflow-x: auto` below still
+       makes this a genuinely usable scrollable/swipeable row on its
+       own — Swiper is a progressive enhancement on top of a markup
+       structure that already works, not a requirement for it to. */}
+    <div
+      class="book-slider__viewport swiper"
+      data-slider-viewport
+      aria-label={`${title} — scrollable list`}
+    >
+      <ul class="swiper-wrapper book-slider__track">
+        {books.map((book) => (
+          <li class="swiper-slide book-slider__item">
+            <BookCard book={book} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  </Container>
+</section>
+
+<style>
+  .book-slider__row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-6);
+    margin-bottom: var(--space-8);
+  }
+
+  .book-slider__nav {
+    display: flex;
+    gap: var(--space-3);
+    flex-shrink: 0;
+  }
+
+  .book-slider__nav-button {
+    width: 42px;
+    height: 42px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--color-border);
+    color: var(--color-ink);
+  }
+
+  .book-slider__nav-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .book-slider__nav-button--filled {
+    background-color: var(--color-ink);
+    border-color: var(--color-ink);
+    color: #fff;
+  }
+
+  .book-slider__viewport {
+    /* Native-scroll fallback, active until Swiper mounts (or if it
+       never gets the chance to — see src/lib/cart.ts's file header
+       for the same "enhancement, not requirement" philosophy). */
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+  }
+
+  /* Swiper adds this class to its root element once initialized — from
+     that point on, Swiper owns scrolling via its own transforms, so
+     the native fallback above needs to step aside rather than fight it. */
+  .book-slider__viewport.swiper-initialized {
+    overflow: hidden;
+    scroll-snap-type: none;
+  }
+
+  .book-slider__track {
+    gap: 28px;
+    padding-bottom: var(--space-4);
+  }
+
+  .book-slider__item {
+    width: 248px;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+    height: auto;
+  }
+</style>
+
+<script>
+  function initBookSliders(root: ParentNode): void {
+    const sliders = root.querySelectorAll<HTMLElement>(".book-slider");
+
+    sliders.forEach((slider) => {
+      if (slider.dataset.initialized === "true") return;
+      slider.dataset.initialized = "true";
+
+      const viewport = slider.querySelector<HTMLElement>("[data-slider-viewport]");
+      const prevButton = slider.querySelector<HTMLButtonElement>("[data-slider-prev]");
+      const nextButton = slider.querySelector<HTMLButtonElement>("[data-slider-next]");
+      if (!viewport) return;
+
+      // The manual equivalent of a framework's `client:visible`: don't
+      // even request Swiper's JS until this specific slider is close
+      // to entering the viewport. `rootMargin: "200px"` starts the
+      // fetch a little before it's actually visible, so the library is
+      // ready by the time scrolling gets there — a slider further down
+      // a longer page costs nothing on a visitor who never scrolls
+      // that far.
+      const observer = new IntersectionObserver(
+        (entries, obs) => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            obs.disconnect();
+            void mountSwiper(viewport, prevButton, nextButton);
+          }
+        },
+        { rootMargin: "200px" },
+      );
+      observer.observe(viewport);
+    });
+  }
+
+  async function mountSwiper(
+    viewport: HTMLElement,
+    prevButton: HTMLButtonElement | null,
+    nextButton: HTMLButtonElement | null,
+  ): Promise<void> {
+    // Dynamic imports (see src/lib/reveal.ts for the same pattern):
+    // Swiper's code is fetched only here, only for a page that reached
+    // this line — never as part of the page's main JS bundle.
+    const [{ default: Swiper }, { Navigation, Keyboard, A11y }] = await Promise.all([
+      import("swiper"),
+      import("swiper/modules"),
+    ]);
+
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    new Swiper(viewport, {
+      modules: [Navigation, Keyboard, A11y],
+      // Slides keep their own CSS width (.book-slider__item, 248px —
+      // matching BookCard's design) rather than Swiper computing one;
+      // "however many whole cards fit" is already the responsive
+      // behavior the design wants at every viewport width, with no
+      // separate breakpoints object to keep in sync with the design.
+      slidesPerView: "auto",
+      spaceBetween: 28,
+      // Instant "transitions" for anyone who's asked for reduced
+      // motion — touch drag, clicking the arrows, and keyboard
+      // navigation all still work, only the sliding animation itself
+      // is skipped (MASTER-PROJECT-SPEC.md §26/§27: respect the
+      // preference without removing the underlying functionality).
+      speed: prefersReducedMotion ? 0 : 500,
+      keyboard: { enabled: true, onlyInViewport: true },
+      navigation: { prevEl: prevButton, nextEl: nextButton },
+      a11y: {
+        prevSlideMessage: "Previous books",
+        nextSlideMessage: "Next books",
+      },
+    });
+  }
+
+  initBookSliders(document);
+</script>

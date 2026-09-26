@@ -1,0 +1,55 @@
+---
+// /books — full catalog (docs/DESIGN-SYSTEM.md "All books").
+// Pagination is shown in Figma but out of scope here: with mock data
+// this small, one page covers the whole catalog. Revisit once a real
+// data source (Supabase, Phase 7) can return a large result set.
+import Layout from "../../layouts/Layout.astro";
+import Container from "../../components/ui/Container.astro";
+import SectionHeading from "../../components/ui/SectionHeading.astro";
+import BookGrid from "../../components/book/BookGrid.astro";
+import Footer from "../../components/layout/Footer.astro";
+import { getBooks } from "../../lib/books";
+
+// Build-time HTML, not per-request SSR — see astro.config.mjs for why
+// this is needed now that `output` is "server" (Phase 4's API routes).
+export const prerender = true;
+
+const books = await getBooks();
+const resultLabel = books.length === 1 ? "1 book" : `${books.length} books`;
+---
+
+<Layout
+  title="All Books — Folio & Co."
+  description="Browse the full collection at Folio & Co. — fiction, nonfiction, poetry, and more, hand-picked by our booksellers."
+>
+  <section class="catalog-intro">
+    <Container>
+      <SectionHeading level="h1" eyebrow="The collection" title="All books" />
+      <p class="catalog-intro__count">{resultLabel}</p>
+    </Container>
+  </section>
+
+  <section class="catalog" aria-label="Book catalog">
+    <Container>
+      <BookGrid books={books} />
+    </Container>
+  </section>
+
+  <Footer />
+</Layout>
+
+<style>
+  .catalog-intro {
+    padding-block: var(--space-12) var(--space-8);
+  }
+
+  .catalog-intro__count {
+    margin-top: var(--space-3);
+    color: var(--color-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .catalog {
+    padding-bottom: var(--space-16);
+  }
+</style>

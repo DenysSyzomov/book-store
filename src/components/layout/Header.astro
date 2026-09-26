@@ -1,0 +1,130 @@
+---
+// Site header: brand, primary nav, cart trigger (docs/DESIGN-SYSTEM.md
+// "Header"). Identical on every content page, so it lives in Layout.astro
+// rather than being repeated per page.
+//
+// The cart trigger's click handling (opening CartDrawer.astro) and its
+// focus-restore-on-close both live in CartDrawer.astro's own script,
+// which queries for `[data-cart-trigger]` — this component only owns
+// keeping the visible badge count correct.
+//
+// Brand name and nav links now come from Sanity (docs/MASTER-PROJECT-
+// SPEC.md §17: "Navigation labels") — fetched here, not passed as a
+// prop from Layout.astro, so this component stays self-contained and
+// still renders something sensible even if it were ever used on its
+// own. The hardcoded values below are only ever seen if Sanity has no
+// content yet or is unreachable — see src/lib/sanity.ts's fallback-
+// chain comment for why that degrade-gracefully behavior matters here.
+import Container from "../ui/Container.astro";
+import { getSiteSettings, getNavigation } from "../../lib/sanity";
+
+const [siteSettings, navigation] = await Promise.all([getSiteSettings(), getNavigation()]);
+
+const siteName = siteSettings?.siteName ?? "Folio & Co.";
+const navLinks = navigation?.links ?? [{ label: "All books", href: "/books" }];
+const cartLabel = navigation?.cartLabel ?? "Bag";
+---
+
+<header class="site-header">
+  <Container class="site-header__row">
+    <a href="/" class="site-header__brand">
+      {siteName}
+    </a>
+
+    <nav class="site-header__nav" aria-label="Primary">
+      {navLinks.map((navLink) => <a href={navLink.href}>{navLink.label}</a>)}
+    </nav>
+
+    <button
+      type="button"
+      class="site-header__cart-trigger"
+      aria-haspopup="dialog"
+      aria-controls="cart-drawer"
+      data-cart-trigger
+    >
+      <span>{cartLabel}</span>
+      <span class="site-header__cart-badge" data-cart-badge aria-hidden="true">
+        0
+      </span>
+      <span class="visually-hidden">items in your bag</span>
+    </button>
+  </Container>
+</header>
+
+<style>
+  .site-header {
+    background-color: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .site-header__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 88px;
+  }
+
+  .site-header__brand {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.875rem;
+    color: var(--color-ink);
+  }
+
+  .site-header__nav {
+    display: flex;
+    gap: var(--space-6);
+    font-family: var(--font-body);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+  }
+
+  .site-header__nav a:hover {
+    color: var(--color-oxblood);
+  }
+
+  .site-header__cart-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-family: var(--font-body);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-ink);
+  }
+
+  .site-header__cart-trigger:hover {
+    color: var(--color-oxblood);
+  }
+
+  .site-header__cart-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-full);
+    background-color: var(--color-oxblood);
+    color: #fff;
+    font-size: 0.6875rem;
+    font-weight: 600;
+  }
+</style>
+
+<script>
+  // Keeps the header badge correct on every page, on load and whenever
+  // the cart changes anywhere (this drawer, another tab writing to the
+  // same localStorage key). getTotalQuantity() re-reads localStorage
+  // fresh each call, so a plain page load already shows the right
+  // count — nothing here needs to "restore" anything on its own.
+  import { getTotalQuantity, CART_CHANGE_EVENT } from "../../lib/cart";
+
+  const badge = document.querySelector<HTMLElement>("[data-cart-badge]");
+
+  function updateBadge(): void {
+    if (badge) badge.textContent = String(getTotalQuantity());
+  }
+
+  updateBadge();
+  window.addEventListener(CART_CHANGE_EVENT, updateBadge);
+</script>

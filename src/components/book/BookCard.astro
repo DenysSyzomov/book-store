@@ -1,0 +1,89 @@
+---
+// Reused, pixel-identical across the homepage slider, the /books grid,
+// and "related books" (docs/DESIGN-SYSTEM.md "Book Card (Large)").
+// Purely presentational: it receives a Book and renders it — it never
+// fetches data itself, so the same component works no matter which
+// parent (or, later, which data source) supplied the book
+// (docs/ARCHITECTURE.md §3).
+import type { Book } from "../../types/book";
+
+interface Props {
+  book: Book;
+}
+
+const { book } = Astro.props;
+const formattedPrice = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+}).format(book.price);
+---
+
+<article class="book-card">
+  <a class="book-card__link" href={`/books/${book.slug}`}>
+    {/* alt="" is deliberate: the title/author text right below duplicates
+       what the alt text would say, and WCAG recommends empty alt for
+       images adjacent to their own equivalent text. */}
+    <img
+      class="book-card__cover"
+      src={book.imageUrl}
+      alt=""
+      width="248"
+      height="344"
+      loading="lazy"
+    />
+    <div class="book-card__details">
+      <h3 class="book-card__title">{book.title}</h3>
+      <p class="book-card__author">{book.author}</p>
+      <p class="book-card__price">{formattedPrice}</p>
+    </div>
+  </a>
+</article>
+
+<style>
+  .book-card {
+    width: 100%;
+    max-width: 248px;
+  }
+
+  .book-card__link {
+    display: block;
+    color: inherit;
+  }
+
+  .book-card__link:hover .book-card__title {
+    color: var(--color-oxblood);
+  }
+
+  .book-card__cover {
+    width: 100%;
+    aspect-ratio: 248 / 344;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-card);
+    object-fit: cover;
+  }
+
+  .book-card__details {
+    margin-top: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .book-card__title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.25rem;
+    color: var(--color-ink);
+  }
+
+  .book-card__author {
+    font-size: 0.75rem;
+    color: var(--color-muted);
+  }
+
+  .book-card__price {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-oxblood);
+  }
+</style>

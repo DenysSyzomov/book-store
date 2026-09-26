@@ -1,0 +1,68 @@
+---
+// Subtotal + checkout action (docs/DESIGN-SYSTEM.md "Cart / Drawer"
+// summary block). A single static instance — unlike CartItem.astro,
+// there's only ever one of these, so it doesn't need the `<template>`
+// clone trick; CartDrawer's script just writes into its `data-field`
+// hooks whenever the cart changes.
+import Button from "../ui/Button.astro";
+---
+
+<div class="cart-summary" data-cart-summary>
+  <div class="cart-summary__row">
+    <span>Subtotal</span>
+    <span data-field="subtotal">$0.00</span>
+  </div>
+
+  <p class="cart-summary__shipping">
+    Shipping and taxes are calculated at checkout.
+  </p>
+
+  <Button type="button" class="cart-summary__checkout" data-action="checkout">
+    <span data-field="checkout-label">Checkout</span>
+  </Button>
+
+  <Button type="button" variant="text" class="cart-summary__continue" data-cart-close>
+    Continue shopping
+  </Button>
+</div>
+
+<style>
+  .cart-summary {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .cart-summary__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .cart-summary__row span:first-child {
+    font-size: var(--font-size-sm);
+    color: var(--color-muted);
+  }
+
+  .cart-summary__row span:last-child {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--color-ink);
+  }
+
+  .cart-summary__shipping {
+    font-size: 0.6875rem;
+    color: var(--color-muted);
+  }
+
+  .cart-summary__checkout {
+    width: 100%;
+    margin-top: var(--space-2);
+  }
+
+  .cart-summary__continue {
+    align-self: center;
+  }
+</style>

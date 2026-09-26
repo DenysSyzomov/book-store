@@ -1,0 +1,305 @@
+---
+// /books/[slug] — book detail page (docs/DESIGN-SYSTEM.md "Book
+// details"). getStaticPaths() pre-renders one page per visible book at
+// build time — this is what makes a dynamic Astro route ([slug].astro)
+// produce real static HTML files instead of needing a server request
+// per book. Each path gets its Book object passed in as `props`, so
+// the data lookup itself happens once, here, not inside the component.
+import type { GetStaticPaths } from "astro";
+import Layout from "../../layouts/Layout.astro";
+import Container from "../../components/ui/Container.astro";
+import Button from "../../components/ui/Button.astro";
+import SectionHeading from "../../components/ui/SectionHeading.astro";
+import QuantityStepper from "../../components/ui/QuantityStepper.astro";
+import BookMetadataTable from "../../components/book/BookMetadataTable.astro";
+import BookGrid from "../../components/book/BookGrid.astro";
+import Footer from "../../components/layout/Footer.astro";
+import { getBooks, getRelatedBooks } from "../../lib/books";
+import { buildBookProductSchema } from "../../lib/seo";
+import type { Book } from "../../types/book";
+
+// Build-time HTML, not per-request SSR — see astro.config.mjs for why
+// this is needed now that `output` is "server" (Phase 4's API routes).
+// getStaticPaths() below only runs at all when a route prerenders, so
+// this isn't optional the way it is on the other two pages.
+export const prerender = true;
+
+export const getStaticPaths = (async () => {
+  const books = await getBooks();
+  return books.map((book) => ({
+    params: { slug: book.slug },
+    props: { book },
+  }));
+}) satisfies GetStaticPaths;
+
+interface Props {
+  book: Book;
+}
+
+const { book } = Astro.props;
+const relatedBooks = await getRelatedBooks(book);
+
+const formattedPrice = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+}).format(book.price);
+
+const isInStock = book.stock > 0;
+const availabilityLabel = isInStock
+  ? book.stock <= 5
+    ? `Only ${book.stock} left in stock`
+    : "In stock"
+  : "Out of stock";
+
+// Product (+Book) JSON-LD, built from this exact `book` object — the
+// same one the price/stock/description above render from, never a
+// second copy that could drift out of sync with what's on the page
+// (docs/ARCHITECTURE.md §11's warning on exactly that failure mode).
+const pageUrl = new URL(Astro.url.pathname, Astro.site).toString();
+const bookJsonLd = buildBookProductSchema(book, pageUrl);
+---
+
+<Layout
+  title={`${book.title} — Folio & Co.`}
+  description={book.description}
+  image={book.imageUrl}
+  ogType="book"
+  bookMeta={{ author: book.author, isbn: book.isbn }}
+  jsonLd={bookJsonLd}
+>
+  <Container>
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <ol>
+        <li>
+          <a href="/">Home</a>
+        </li>
+        <li>
+          <a href="/books">Books</a>
+        </li>
+        <li>{book.category}</li>
+        <li aria-current="page">{book.title}</li>
+      </ol>
+    </nav>
+  </Container>
+
+  <section class="purchase">
+    <Container class="purchase__row">
+      <div class="purchase__cover">
+        <img
+          src={book.imageUrl}
+          alt={`Cover of ${book.title} by ${book.author}`}
+          width="400"
+          height="560"
+        />
+      </div>
+
+      <div class="purchase__details">
+        <h1 class="purchase__title">{book.title}</h1>
+        <p class="purchase__author">by {book.author}</p>
+        <p class="purchase__price">{formattedPrice}</p>
+        <p
+          class:list={[
+            "purchase__availability",
+            { "purchase__availability--out": !isInStock },
+          ]}
+        >
+          {availabilityLabel}
+        </p>
+
+        {isInStock && (
+          <div class="purchase__actions">
+            <QuantityStepper id="purchase-quantity" max={book.stock} />
+            <Button
+              type="button"
+              variant="primary"
+              data-add-to-cart
+              data-book-id={book.id}
+            >
+              Add to bag
+            </Button>
+          </div>
+        )}
+      </div>
+    </Container>
+  </section>
+
+  <section class="book-info" aria-label="About the book">
+    <Container class="book-info__row">
+      <div class="book-info__synopsis">
+        <SectionHeading title="About the book" />
+        <p>{book.description}</p>
+      </div>
+      <BookMetadataTable book={book} />
+    </Container>
+  </section>
+
+  {relatedBooks.length > 0 && (
+    <section class="related-books" aria-label="Related books">
+      <Container>
+        <SectionHeading eyebrow="Keep exploring" title="You may also like" />
+        <div class="related-books__grid">
+          <BookGrid books={relatedBooks} />
+        </div>
+      </Container>
+    </section>
+  )}
+
+  <Footer />
+</Layout>
+
+<style>
+  .breadcrumbs {
+    padding-top: var(--space-6);
+  }
+
+  .breadcrumbs ol {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    font-size: 0.75rem;
+    color: var(--color-muted);
+  }
+
+  .breadcrumbs li:not(:last-child)::after {
+    content: "/";
+    margin-left: var(--space-2);
+  }
+
+  .breadcrumbs a:hover {
+    color: var(--color-oxblood);
+  }
+
+  .purchase {
+    padding-block: var(--space-16);
+  }
+
+  .purchase__row {
+    display: flex;
+    gap: var(--space-16);
+  }
+
+  .purchase__cover {
+    flex: 0 0 340px;
+  }
+
+  .purchase__cover img {
+    width: 100%;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-panel);
+    object-fit: cover;
+  }
+
+  .purchase__details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    max-width: 480px;
+  }
+
+  .purchase__title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 2.5rem;
+    line-height: 1.1;
+  }
+
+  .purchase__author {
+    font-family: var(--font-display);
+    font-size: var(--font-size-lg);
+    color: var(--color-muted);
+  }
+
+  .purchase__price {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    margin-top: var(--space-2);
+  }
+
+  .purchase__availability {
+    font-size: var(--font-size-sm);
+    color: var(--color-moss);
+  }
+
+  .purchase__availability--out {
+    color: var(--color-oxblood);
+  }
+
+  .purchase__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    margin-top: var(--space-4);
+  }
+
+  .book-info {
+    padding-block: var(--space-16);
+    background-color: var(--color-surface);
+  }
+
+  .book-info__row {
+    display: flex;
+    gap: var(--space-16);
+  }
+
+  .book-info__synopsis {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .book-info__synopsis p {
+    color: var(--color-muted);
+    line-height: var(--line-height-relaxed);
+  }
+
+  .book-info__row :global(.book-metadata) {
+    flex: 1;
+    align-self: start;
+  }
+
+  .related-books {
+    padding-block: var(--space-16);
+  }
+
+  .related-books__grid {
+    margin-top: var(--space-8);
+  }
+
+  @media (max-width: 768px) {
+    .purchase__row,
+    .book-info__row {
+      flex-direction: column;
+    }
+
+    .purchase__cover {
+      flex: none;
+      max-width: 320px;
+    }
+  }
+</style>
+
+<script>
+  // Wires the "Add to bag" button to the cart store (src/lib/cart.ts).
+  // This page already knows the book's id (it's a build-time prop, see
+  // getStaticPaths() above) — no catalog lookup needed here, that's
+  // only for the drawer resolving ids it doesn't already have context for.
+  import { addItem } from "../../lib/cart";
+
+  const button = document.querySelector<HTMLButtonElement>("[data-add-to-cart]");
+  const quantityInput = document.querySelector<HTMLInputElement>("#purchase-quantity");
+
+  button?.addEventListener("click", () => {
+    const bookId = button.dataset.bookId;
+    if (!bookId) return;
+
+    const quantity = Number(quantityInput?.value) || 1;
+    addItem(bookId, quantity);
+
+    // Reuse the header trigger's own open logic (CartDrawer.astro)
+    // instead of duplicating it — this just simulates the same click
+    // a visitor would make themselves.
+    document.querySelector<HTMLElement>("[data-cart-trigger]")?.click();
+  });
+</script>

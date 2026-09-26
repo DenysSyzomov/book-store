@@ -1,0 +1,103 @@
+---
+// Everything that goes in <head> for search engines and social
+// previews (docs/ARCHITECTURE.md's SEO.astro section, docs/MASTER-
+// PROJECT-SPEC.md §29–31). Rendered once, inside Layout.astro — every
+// page passes its own `title`/`description` in through Layout's props;
+// there's no generic fallback, which is what makes "every indexable
+// page must have a unique title and description" (spec §29) an actual
+// guarantee instead of a hope.
+import {
+  isProductionSite,
+  SITE_NAME,
+} from "../lib/seo";
+
+interface BookMeta {
+  author: string;
+  isbn?: string;
+}
+
+interface Props {
+  title: string;
+  description: string;
+  /** Defaults to the current route — override only for a page that
+   * canonicalizes to a *different* URL than the one it's served from. */
+  canonicalPath?: string;
+  /** Absolute or site-relative. Omitted entirely (no invented default
+   * image) when a page has no real image of its own to offer. */
+  image?: string;
+  ogType?: "website" | "book";
+  bookMeta?: BookMeta;
+  /** One schema.org node (sans `@context`), or several. */
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+}
+
+const {
+  title,
+  description,
+  canonicalPath = Astro.url.pathname,
+  image,
+  ogType = "website",
+  bookMeta,
+  jsonLd,
+} = Astro.props;
+
+const canonicalUrl = new URL(canonicalPath, Astro.site).toString();
+const absoluteImage = image ? new URL(image, Astro.site).toString() : undefined;
+
+// See src/lib/seo.ts: only a confirmed Vercel *production* build says
+// "index, follow" — anything else (local dev, a Preview deployment)
+// defaults to noindex. This meta tag is the actual enforcement; the
+// matching line in src/pages/robots.txt.ts is a courtesy for
+// well-behaved crawlers, not a substitute for it (docs/MASTER-PROJECT-
+// SPEC.md §31: "robots.txt alone must not be treated as a security
+// mechanism").
+const robotsContent = isProductionSite() ? "index, follow" : "noindex, nofollow";
+
+const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
+// A single <script type="application/ld+json"> either way — one node
+// directly, or several combined under one "@graph" — never more than
+// one script tag per page, so there's no risk of the same entity
+// (e.g. two WebSite nodes) being declared twice.
+const jsonLdPayload =
+  jsonLdItems.length === 0
+    ? null
+    : jsonLdItems.length === 1
+      ? { "@context": "https://schema.org", ...jsonLdItems[0] }
+      : { "@context": "https://schema.org", "@graph": jsonLdItems };
+// Same escaping the embedded book catalog uses (Layout.astro) — a
+// book title or description containing a literal "</script" could
+// otherwise end the tag early.
+const jsonLdJson = jsonLdPayload
+  ? JSON.stringify(jsonLdPayload).replace(/</g, "\\u003c")
+  : null;
+---
+
+<title>{title}</title>
+<meta name="description" content={description} />
+<link rel="canonical" href={canonicalUrl} />
+<meta name="robots" content={robotsContent} />
+
+<meta name="theme-color" content="#9b3a2d" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="/favicon.ico" sizes="any" />
+
+<meta property="og:site_name" content={SITE_NAME} />
+<meta property="og:type" content={ogType} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={canonicalUrl} />
+{absoluteImage && <meta property="og:image" content={absoluteImage} />}
+
+{ogType === "book" && bookMeta && (
+  <>
+    <meta property="book:author" content={bookMeta.author} />
+    {bookMeta.isbn && <meta property="book:isbn" content={bookMeta.isbn} />}
+  </>
+)}
+
+<meta name="twitter:card" content={absoluteImage ? "summary_large_image" : "summary"} />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+{absoluteImage && <meta name="twitter:image" content={absoluteImage} />}
+
+{jsonLdJson && <script type="application/ld+json" set:html={jsonLdJson} />}
