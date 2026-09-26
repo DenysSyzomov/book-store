@@ -385,10 +385,11 @@ Create the clean Astro foundation.
 - Create initial page.
 - Verify development server.
 - Verify production build.
+- Initialize git repository. Make the first commit at the end of this phase, not later.
 
 ### Output
 
-A clean working Astro application.
+A clean working Astro application, under version control, with its first commit made.
 
 ---
 
@@ -457,6 +458,12 @@ Use local mock data.
 Do not integrate Supabase yet.
 
 Do not integrate Sanity yet.
+
+Also:
+
+- Create a Vercel project connected to the repository; enable Deployment Protection on all non-production deployments from day one; verify the Preview URL renders the mock-data UI.
+
+This does not wait until Phase 10. Setting up the Vercel project and confirming a working, protected Preview URL early gives every later phase something to check its work against, and gives anyone reviewing the project an intermediate URL long before production exists. Promoting a deployment to Production still does not happen until after Phase 9 (see §23).
 
 ---
 
@@ -597,18 +604,16 @@ docs/SECURITY.md
 
 ### Responsibility
 
-Configure deployment.
+Promote the project to production. The git repository (Phase 1) and the Vercel project with Preview deployments (Phase 3) already exist by this point — this phase is not about creating them, it is about finalizing production readiness now that the Phase 9 security audit has signed off.
 
 ### Tasks
 
-- GitHub repository workflow
-- Branch strategy
-- Vercel project
-- Preview deployments
-- Production deployment
-- Environment variables
-- Preview protection
-- Production configuration
+- Promote the reviewed, audited build to a Production deployment.
+- Configure the Staging fixed subdomain (a long-lived branch pinned to a stable preview URL, distinct from ordinary per-push Preview URLs).
+- Finalize Production-scoped environment variables/secrets — this is the first point at which any environment variable may be scoped as "Production" and hold real credentials (see `ARCHITECTURE.md` §11).
+- Confirm branch strategy and merge workflow into `main`.
+- Re-verify Preview protection is still enabled (it was turned on in Phase 3; do not treat it as newly added here).
+- Confirm Production configuration (domains, headers, adapter settings) end to end.
 
 Production branch:
 
@@ -784,15 +789,11 @@ It creates a stable checkpoint after every architectural phase.
 
 # 28. Git Checkpoint Strategy
 
+The first checkpoint commit happens at the end of Phase 1 (Astro Foundation), immediately after `git init` — not retroactively before Phase 10. Phase 0 (Project Architect) produces only documentation before any repository exists; once Phase 1 initializes the repository, every completed phase from that point on gets its own commit.
+
 After each completed phase, create a commit.
 
-Example:
-
-```text
-docs: define project architecture
-```
-
-Then:
+Example, starting from Phase 1:
 
 ```text
 feat: initialize Astro project
