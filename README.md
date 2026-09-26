@@ -32,6 +32,8 @@ Documented in full (with the reasoning behind each one) in [`.env.example`](./.e
 | `PUBLIC_SANITY_DATASET`        | Yes                  | `src/lib/sanity.ts`                            |
 | `SUPABASE_SERVICE_ROLE_KEY`    | **No — server-only** | Reserved; not read by any code yet             |
 | `SANITY_TOKEN`                 | **No — server-only** | Reserved; not read by any code yet             |
+| `RESEND_API_KEY`               | **No — server-only** | Order notification email (`src/lib/notifications.ts`) |
+| `ORDER_NOTIFICATION_EMAIL`     | **No — server-only** | Order notification email (`src/lib/notifications.ts`) |
 | `VERCEL_ENV`                   | No (server-only)     | Set automatically by Vercel — nothing to configure |
 
 ## Git workflow

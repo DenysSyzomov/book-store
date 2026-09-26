@@ -1,7 +1,8 @@
 // Order submission types (docs/ARCHITECTURE.md §4). `OrderItem`
 // deliberately omits price for the same reason `CartItem` does — see
-// src/lib/cart.ts. Where an order actually gets persisted (Supabase
-// table, email, both) is an explicit Phase 7 decision, not this one;
+// src/lib/cart.ts. An accepted order is emailed to the store owner
+// (src/lib/notifications.ts); whether it's *also* persisted to a
+// Supabase table is still an explicit Phase 7 decision, not this one;
 // these types only describe the shape of the request/response between
 // the browser and the server routes below.
 export interface OrderItem {

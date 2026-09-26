@@ -32,12 +32,13 @@ export default defineConfig({
     sanity({
       projectId: PUBLIC_SANITY_PROJECT_ID,
       dataset: PUBLIC_SANITY_DATASET,
-      // Every page that reads Sanity content is prerendered at build
-      // time (see the `prerender = true` note below) — there's no
-      // per-request "always fresh" need the CDN's edge cache would
-      // conflict with, and skipping the CDN means a build always sees
-      // the very latest published content, not whatever the CDN last
-      // cached.
+      // index.astro (the only page reading Sanity content) is
+      // server-rendered and ISR-cached (see the `isr` option below),
+      // not built once and frozen — so every regeneration should see
+      // the very latest published content rather than whatever
+      // Sanity's own CDN last cached. The 60s ISR window is already
+      // the freshness delay; stacking the CDN's own cache on top of
+      // that would just add a second, redundant staleness window.
       useCdn: false,
     }),
     // Studio itself (studio/) is a separate app with its own
@@ -54,16 +55,36 @@ export default defineConfig({
   // (docs/ARCHITECTURE.md §1's diagram: "Astro app on Vercel").
   //
   // Under `output: "server"`, every page is server-rendered on request
-  // by default — the opposite default from `"static"`. That would
-  // silently turn index.astro / books/index.astro / books/[slug].astro
-  // from build-time HTML into per-request SSR, losing the "fast first
-  // paint, works with JS disabled, crawlable" property
-  // docs/ARCHITECTURE.md §5 explicitly assigns them. Each of those
-  // pages opts back into build-time prerendering with its own
-  // `export const prerender = true;` — only the two API routes above
-  // are actually server-rendered per-request.
+  // by default — including index.astro / books/index.astro /
+  // books/[slug].astro, which used to opt out via
+  // `export const prerender = true;`. That's deliberately gone now
+  // (docs/ARCHITECTURE.md §7 "Book data freshness (ISR)"): a book added
+  // in Supabase needs to show up without a full redeploy. `isr` below
+  // is what keeps these SSR pages from losing the "fast, static-like"
+  // property that `prerender = true` used to provide — Vercel caches
+  // each rendered page and only re-runs it once the expiration below
+  // has passed, rather than hitting Supabase/Sanity on every request.
   output: "server",
-  adapter: vercel(),
+  adapter: vercel({
+    isr: {
+      // How long (in seconds) a cached page is served before Vercel
+      // regenerates it in the background on the next request past that
+      // point — the actual "how fast does a new book appear" number.
+      // 60s was chosen as a reasonable default staleness window; lower
+      // it if that ever feels too slow, at the cost of hitting
+      // Supabase/Sanity more often.
+      expiration: 60,
+      // `isr` with no `exclude` wraps every non-prerendered route,
+      // including src/pages/api/cart/{validate,submit}.ts — caching a
+      // POST endpoint's response is exactly the kind of bug
+      // docs/ARCHITECTURE.md §10's trust-boundary section warns about
+      // (a stale/replayed price validation or order-acceptance
+      // response served to a different request). API routes must
+      // always run fresh, so they're excluded from ISR entirely and
+      // stay on the plain serverless function.
+      exclude: [/^\/api\//],
+    },
+  }),
   build: {
     // Astro's default ("auto") inlines a page's CSS directly as a
     // <style> block when it's small enough — but vercel.json's CSP
@@ -74,5 +95,26 @@ export default defineConfig({
     // be external files (already how the homepage's larger CSS chunk
     // behaved) fixes this without loosening the CSP.
     inlineStylesheets: "never",
+  },
+  vite: {
+    build: {
+      // The same inlining problem as inlineStylesheets above, but for
+      // hoisted <script> tags: Astro inlines a script's bundled chunk
+      // directly into the page HTML whenever it has no imports and is
+      // under Vite's assetsInlineLimit (default 4KB) — see
+      // node_modules/astro/dist/core/build/plugins/plugin-scripts.js.
+      // QuantityStepper.astro's script has no imports (unlike
+      // Header/CartDrawer/[slug].astro's, which import from src/lib
+      // and get externalized), so it was getting inlined — and
+      // vercel.json's CSP (script-src 'self' plus one fixed sha256
+      // hash, no 'unsafe-inline') silently dropped it, which is why
+      // the book page's quantity +/- buttons did nothing once
+      // deployed behind that CSP. Excluding .js chunks keeps every
+      // hoisted script external without changing inlining for other
+      // small assets (e.g. images as data URIs), which aren't
+      // executable and don't hit script-src.
+      assetsInlineLimit: (filePath) =>
+        filePath.endsWith(".js") ? false : undefined,
+    },
   },
 });

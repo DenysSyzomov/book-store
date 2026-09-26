@@ -10,10 +10,10 @@ import BookGrid from "../../components/book/BookGrid.astro";
 import Footer from "../../components/layout/Footer.astro";
 import { getBooks } from "../../lib/books";
 
-// Build-time HTML, not per-request SSR — see astro.config.mjs for why
-// this is needed now that `output` is "server" (Phase 4's API routes).
-export const prerender = true;
-
+// Server-rendered per request (not prerendered — see
+// docs/ARCHITECTURE.md §7 "Book data freshness (ISR)"): Vercel's ISR
+// caching (astro.config.mjs's `isr` option) is what keeps this fast
+// without needing a full site rebuild every time the catalog changes.
 const books = await getBooks();
 const resultLabel = books.length === 1 ? "1 book" : `${books.length} books`;
 ---

@@ -1,11 +1,11 @@
 ---
 // /books/[slug] — book detail page (docs/DESIGN-SYSTEM.md "Book
-// details"). getStaticPaths() pre-renders one page per visible book at
-// build time — this is what makes a dynamic Astro route ([slug].astro)
-// produce real static HTML files instead of needing a server request
-// per book. Each path gets its Book object passed in as `props`, so
-// the data lookup itself happens once, here, not inside the component.
-import type { GetStaticPaths } from "astro";
+// details"). Server-rendered per request (not prerendered — see
+// docs/ARCHITECTURE.md §7 "Book data freshness (ISR)"): the book is
+// looked up fresh by slug on every request, and Vercel's ISR caching
+// (astro.config.mjs's `isr` option) is what keeps this fast without
+// needing a full site rebuild every time a book is added/edited in
+// Supabase.
 import Layout from "../../layouts/Layout.astro";
 import Container from "../../components/ui/Container.astro";
 import Button from "../../components/ui/Button.astro";
@@ -14,29 +14,16 @@ import QuantityStepper from "../../components/ui/QuantityStepper.astro";
 import BookMetadataTable from "../../components/book/BookMetadataTable.astro";
 import BookGrid from "../../components/book/BookGrid.astro";
 import Footer from "../../components/layout/Footer.astro";
-import { getBooks, getRelatedBooks } from "../../lib/books";
+import { getBookBySlug, getRelatedBooks } from "../../lib/books";
 import { buildBookProductSchema } from "../../lib/seo";
-import type { Book } from "../../types/book";
 
-// Build-time HTML, not per-request SSR — see astro.config.mjs for why
-// this is needed now that `output` is "server" (Phase 4's API routes).
-// getStaticPaths() below only runs at all when a route prerenders, so
-// this isn't optional the way it is on the other two pages.
-export const prerender = true;
+const { slug } = Astro.params;
+const book = slug ? await getBookBySlug(slug) : undefined;
 
-export const getStaticPaths = (async () => {
-  const books = await getBooks();
-  return books.map((book) => ({
-    params: { slug: book.slug },
-    props: { book },
-  }));
-}) satisfies GetStaticPaths;
-
-interface Props {
-  book: Book;
+if (!book) {
+  return new Response(null, { status: 404 });
 }
 
-const { book } = Astro.props;
 const relatedBooks = await getRelatedBooks(book);
 
 const formattedPrice = new Intl.NumberFormat("en-US", {
@@ -289,9 +276,10 @@ const bookJsonLd = buildBookProductSchema(book, pageUrl);
 
 <script>
   // Wires the "Add to bag" button to the cart store (src/lib/cart.ts).
-  // This page already knows the book's id (it's a build-time prop, see
-  // getStaticPaths() above) — no catalog lookup needed here, that's
-  // only for the drawer resolving ids it doesn't already have context for.
+  // This page already knows the book's id (it's baked into the
+  // server-rendered `data-book-id` attribute above) — no catalog lookup
+  // needed here, that's only for the drawer resolving ids it doesn't
+  // already have context for.
   import { addItem } from "../../lib/cart";
 
   const button = document.querySelector<HTMLButtonElement>("[data-add-to-cart]");

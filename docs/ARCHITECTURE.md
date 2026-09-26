@@ -264,7 +264,7 @@ export interface OrderInput {
 }
 ```
 
-**Why it exists:** MASTER-PROJECT-SPEC §11 requires a customer-information form and order submission, but no such form appears in the Figma file (`DESIGN-SYSTEM.md` open question #7), so its exact fields aren't derivable from design. This is a minimal, defensible shape (name + email + optional phone/notes) that unblocks Phase 4 without inventing UI that isn't specified. **Where the order is persisted (Supabase `orders` table vs. an email notification vs. both) is deliberately left open here** — that's a Phase 7 decision once Supabase is wired up, and deciding it now would be designing ahead of the phase that owns it (`AGENT-WORKFLOW.md` §6).
+**Why it exists:** MASTER-PROJECT-SPEC §11 requires a customer-information form and order submission, but no such form appears in the Figma file (`DESIGN-SYSTEM.md` open question #7), so its exact fields aren't derivable from design. This is a minimal, defensible shape (name + email + optional phone/notes) that unblocks Phase 4 without inventing UI that isn't specified. **An accepted order is now emailed to the store owner** (`src/lib/notifications.ts`, §10 below) but **still isn't written to a durable store** — a Supabase `orders` table is still a Phase 7 decision once Supabase is wired up for writes, and deciding it now would be designing ahead of the phase that owns it (`AGENT-WORKFLOW.md` §6).
 
 ## `ContentBlock` (Sanity-owned editorial fields, per the Content Ownership table in the spec)
 
@@ -297,13 +297,13 @@ export interface SiteContent {
 
 | Concern                                         | Runs on                                              | Why                                                                                                   |
 | ----------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Page HTML (layout, book listings, book detail)  | **Server**, prerendered at build                     | Fast first paint, works with JS disabled, crawlable for SEO                                           |
-| Reading book data (`getBooks`, `getBookBySlug`) | **Server** (build or request time)                   | Never expose Supabase queries or keys to the browser                                                  |
+| Page HTML (layout, book listings, book detail)  | **Server**, SSR + ISR-cached (§7 "Book data freshness") | Fast first paint (from ISR's cache), works with JS disabled, crawlable for SEO — without needing a rebuild per Supabase change |
+| Reading book data (`getBooks`, `getBookBySlug`) | **Server** (request time, ISR-cached)                | Never expose Supabase queries or keys to the browser                                                  |
 | Cart contents (add/remove/change quantity)      | **Client** (`localStorage`)                          | Needs instant feedback with zero network round-trips while browsing                                   |
 | Cart badge count in header                      | **Client**, small script after hydration             | The server-rendered header can't know client-only cart state at request time                          |
-| Price/stock shown while browsing                | **Server**-sourced (baked into the prerendered HTML) | Same trust boundary as any other book data                                                            |
+| Price/stock shown while browsing                | **Server**-sourced (baked into the ISR-cached HTML)  | Same trust boundary as any other book data                                                            |
 | Price/stock **re-validation** before checkout   | **Server** (`/api/cart/validate`)                    | The client's copy of the price can be stale or tampered with — never trusted                          |
-| Order submission                                | **Server** (`/api/cart/submit`)                      | Must validate input and (eventually) write to a trusted store                                         |
+| Order submission                                | **Server** (`/api/cart/submit`)                      | Must validate input, email the store owner, and (eventually) write to a trusted store                 |
 | Slider (Swiper)                                 | **Client** island (`client:visible`)                 | Needs touch/drag DOM APIs that don't exist on the server                                              |
 | Reveal animation (GSAP)                         | **Client**, tiny scoped script                       | Purely presentational; must also respect `prefers-reduced-motion`, which is a client-only media query |
 | SEO tags / JSON-LD                              | **Server**, baked into initial HTML                  | Must be present without JS execution for crawlers to read it                                          |
@@ -357,6 +357,20 @@ export interface SiteContent {
 - Forgetting to enable RLS (or enabling it but leaving the default "no policies = no access" _or, worse,_ accidentally leaving a permissive default policy) is the single most common Supabase mistake — it either breaks the public site or, worse, exposes every row including inactive/hidden products to anyone.
 - Putting the service-role key in a `PUBLIC_*` variable, or importing `src/lib/supabase.ts` from a `client:*` island, ships full read/write database access to every visitor's browser dev tools.
 - Trusting a price read from Supabase _without_ re-reading it at the moment of order validation (e.g. caching it too long) reopens the same "stale price" problem described in §6 — the fix is that `/api/cart/validate` always does a fresh lookup, never relies on anything computed earlier in the request lifecycle.
+
+## Book data freshness (ISR)
+
+**What it does:** `index.astro`, `books/index.astro`, and `books/[slug].astro` no longer set `export const prerender = true;` — they're ordinary SSR pages under this project's `output: "server"` default. `astro.config.mjs`'s `adapter: vercel({ isr: { expiration: 60 } })` is what keeps that fast: Vercel caches each rendered page like a static file and only re-runs the Astro page (a fresh `getBooks()`/`getBookBySlug()` call) once a request arrives more than 60 seconds after the last regeneration — not on every single request.
+
+**Why it exists:** With `prerender = true`, these three pages were only ever generated once, at build time — a book added or edited in Supabase (or content edited in Sanity, for `index.astro`) didn't appear until the next deploy. That was fine while product/content data only changed through a code change anyway, but it stopped being fine the moment Supabase became the actual place someone adds a book from (§7 above): "add a row" and "trigger a redeploy" are two different actions, and there was no automation wiring the first to the second.
+
+**Why we're choosing time-based ISR (as opposed to alternatives):**
+
+- **A Supabase → Vercel Deploy Hook webhook on insert/update** would give instant updates, but re-triggers a *full site rebuild* for a one-row change — much heavier than re-rendering one page, and still has the deploy's own build-time latency (tens of seconds) before it's live.
+- **On-demand ISR** (calling Vercel's `x-prerender-revalidate` endpoint for just the changed path, e.g. from a Supabase database webhook) is the eventual "instant, but still cheap" option if a 60s window ever proves too slow for how this store actually gets used — deliberately not built now, since it needs a webhook endpoint and a shared secret that aren't justified yet for a learning project with no real order volume.
+- **Removing `prerender` with no `isr` config at all** (plain SSR) would also make new books appear instantly, but every single request would re-query Supabase (and, on the homepage, Sanity) — for a public storefront's most-visited pages, that's needless load and latency this ISR config avoids for free.
+
+**What goes wrong if implemented incorrectly:** Forgetting to remove a page's `export const prerender = true;` while expecting it to pick up new Supabase rows silently reintroduces the exact staleness this section exists to fix — `isr` only helps pages that are actually server-rendered; a prerendered page is still frozen at build time regardless of the adapter config. Setting `expiration` far higher "to reduce load" quietly recreates the original problem in a smaller, easier-to-forget-about form.
 
 ---
 
@@ -418,11 +432,22 @@ Browser sends: { customerName, email, items: [{ bookId, quantity }] }
                           │
                           ▼
       Reject the whole order if anything fails validation.
-      Otherwise: respond with a server-computed subtotal
-      and (Phase 7) persist the order.
+      Otherwise: email the store owner (src/lib/notifications.ts)
+      and respond with a server-computed subtotal.
+      Writing the order to a durable store is still Phase 7.
 ```
 
 The browser is never asked for, and never trusted for, a price. It only ever sends _identifiers and quantities_ — this single rule is what makes "no online payments, but still a real order flow" safe.
+
+## Order notification email
+
+**What it does:** Once an order passes the validation above, `src/lib/notifications.ts` POSTs a plain `fetch` request to Resend's HTTP API (no SDK) to email the accepted order — customer details, resolved items, server-computed subtotal — to `ORDER_NOTIFICATION_EMAIL`, with `reply_to` set to the customer's own email so the store owner can reply directly.
+
+**Why it exists:** With no order persistence yet (Phase 7), an accepted order was otherwise visible nowhere except the customer's own success screen — there was no way for the store owner to actually learn a request came in.
+
+**Trust boundary:** `RESEND_API_KEY` and `ORDER_NOTIFICATION_EMAIL` are server-only environment variables, read via `import.meta.env` only inside `src/lib/notifications.ts`, called only from `src/pages/api/cart/submit.ts` — never from a component's client-side script. Every user-supplied string interpolated into the email's HTML (`customerName`, `email`, `notes`, book titles) is HTML-escaped first, since an email client renders that HTML the same way a browser would.
+
+**Failure mode is deliberately non-blocking:** if Resend is unreachable, misconfigured, or rejects the request, the error is logged (visible in Vercel's function logs) but the order is still accepted — a flaky third-party email API must not turn into a failed checkout for the customer. The concrete cost of this choice: if the email silently fails, that order is genuinely lost until Phase 7 persistence exists, since nothing else records it.
 
 ## Decision-by-decision
 
@@ -461,6 +486,15 @@ _What goes wrong if implemented incorrectly:_ Using the service-role key for rou
 **What goes wrong if implemented incorrectly:** An unprotected preview deployment is a publicly reachable, search-indexable copy of the site running against whatever data it's configured with — if that preview happens to point at production Supabase (a very easy mistake when "just testing"), you've created an unauthenticated second front door to real commercial data.
 
 **Staging (added Phase 10 — see `docs/DEPLOYMENT.md` §3 for the full setup):** a third, named tier sits between ordinary Preview URLs and Production — a long-lived `staging` branch pinned to a fixed subdomain, so reviewers get one stable URL instead of a new one per push. It is not a distinct Vercel product; it's an ordinary Preview deployment (same Deployment Protection, same `VERCEL_ENV !== "production"` → noindex behavior already described above and in `docs/SECURITY.md` §8) that happens to have a stable branch and domain assigned to it. No code change was required to add it.
+
+**Infra setup timing vs. production-promotion timing — these are two different things.** The git repository is created at the end of Phase 1 (Astro Foundation), and the Vercel project itself — connected to that repository, with Deployment Protection enabled on all non-production deployments — is created in Phase 3 (UI Components and Pages), against mock data. Neither of those events is "deploying to production." They exist that early so that (a) every phase from Phase 1 onward gets its own git checkpoint (`AGENT-WORKFLOW.md` §28), rather than squashing Phases 0–9 into one retroactive commit, and (b) reviewers have a working, protected Preview URL to look at from Phase 3 onward instead of waiting until the very end of the project. Promotion to a **Production** deployment is a separate event that still only happens in Phase 10, strictly after the Phase 9 Security Audit signs off — this does not change the phase-order reasoning in §13, which explicitly identifies "deploying before the security audit" as one of the two riskiest reorderings in the whole project. Having a repository and a Preview URL early is infrastructure setup; letting the public reach a Production deployment early would be the mistake §13 warns against, and this document does not do that.
+
+**No real secrets in a "Production"-scoped environment before Phase 9, and no preview/staging deployment against real production data before Phase 7.** Concretely:
+
+- No environment variable may be scoped as "Production" in Vercel and hold a real credential (a live Supabase service-role key, a live Sanity token, etc.) until the Phase 9 Security Audit has signed off. Before that point, if a Production environment scope exists at all, it stays empty or holds placeholder values.
+- No Preview or Staging deployment may point at real production Supabase credentials before Row Level Security has been verified in Phase 7 (`supabase/tests/books_rls.sql` passing is the concrete gate). Until then, Preview/Staging deployments run against mock data (Phase 3–6) or, once Supabase exists, a separate low-privilege Supabase project created specifically for preview use — they never share credentials with the eventual production Supabase project.
+
+This keeps the early Preview URL (useful from Phase 3 for showing progress) from ever becoming a second, unaudited front door to real commercial data — the exact failure mode described earlier in this section.
 
 ---
 

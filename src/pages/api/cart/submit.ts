@@ -5,16 +5,17 @@
 // at all (a replayed request, a script). Nothing is trusted just
 // because the browser already showed a green checkmark for it.
 //
-// This route intentionally does NOT write the order anywhere durable
-// yet (no database row, no email). Where an accepted order gets
-// persisted is an explicit Phase 7 decision (docs/ARCHITECTURE.md §4,
-// "Order"), once Supabase exists — deciding that now would mean
-// designing ahead of the phase that owns it. For this phase, "accepted"
-// means "passed validation," which is enough to build and test the
-// full cart → form → success flow.
+// This route still does NOT write the order anywhere durable (no
+// database row) — that's still an open Phase 7 decision
+// (docs/ARCHITECTURE.md §4, "Order"), once Supabase exists.
+// It does now email the store owner via src/lib/notifications.ts, so
+// an accepted order isn't only visible on the customer's own success
+// screen. That email is best-effort: if it fails to send, the order
+// is still accepted (see notifications.ts's own header for why).
 import type { APIRoute } from "astro";
 import { validateOrderItems } from "../../../lib/orders";
 import { validateCustomerFields } from "../../../lib/validation";
+import { sendOrderNotification } from "../../../lib/notifications";
 import type { OrderInput, OrderItem, OrderSubmitResult } from "../../../types/order";
 
 export const prerender = false;
@@ -54,7 +55,7 @@ export const POST: APIRoute = async ({ request }) => {
   };
 
   const fieldErrors = validateCustomerFields(input);
-  const { resolvedItems, issues } = await validateOrderItems(input.items);
+  const { resolvedItems, issues, subtotal } = await validateOrderItems(input.items);
 
   const hasBlockingIssues =
     resolvedItems.length === 0 ||
@@ -65,9 +66,12 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   // No persistence layer exists yet (see file header) — a random id is
-  // enough for the success screen to reference something concrete
-  // without pretending an order was actually stored anywhere.
+  // enough for the success screen and the notification email to
+  // reference something concrete without pretending an order was
+  // actually stored anywhere.
   const orderId = crypto.randomUUID();
+
+  await sendOrderNotification({ orderId, customer: input, items: resolvedItems, subtotal });
 
   return json({ ok: true, orderId }, 200);
 };
